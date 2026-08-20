@@ -1,0 +1,343 @@
+
+#include <stdio.h>
+#include <string.h>
+#include <stdarg.h>
+
+#define MAX 20
+#define INF 999999
+
+int n;
+char name[MAX][20];
+int cost[MAX][MAX];
+
+int adj[MAX][MAX];
+int adjCount[MAX];
+
+int dist_[MAX];
+int par[MAX];
+
+FILE *outFile;   /* out.txt file pointer */
+
+/* PR() prints to console (stdout) AND writes the same text into out.txt */
+void PR(const char *fmt, ...)
+{
+    va_list args1, args2;
+
+    va_start(args1, fmt);
+    vprintf(fmt, args1);
+    va_end(args1);
+
+    va_start(args2, fmt);
+    vfprintf(outFile, fmt, args2);
+    va_end(args2);
+}
+
+void printLine(void)
+{
+    PR("==========================================\n");
+}
+
+void printDistStr(int d)
+{
+    if (d >= INF)
+        PR("INF");
+    else
+        PR("%d", d);
+}
+
+void buildAdjacency(void)
+{
+    int i, j;
+    for (i = 0; i < n; i++)
+    {
+        adjCount[i] = 0;
+        for (j = n - 1; j >= 0; j--)
+        {
+            if (j == i) continue;
+            if (cost[i][j] != INF)
+            {
+                adj[i][adjCount[i]++] = j;
+            }
+        }
+    }
+}
+
+void printAdjacencyList(void)
+{
+    int i, k;
+    PR("==========================================\n");
+    PR("         ADJACENCY LIST\n");
+    PR("==========================================\n\n");
+
+    for (i = 0; i < n; i++)
+    {
+        PR("%s ", name[i]);
+        for (k = 0; k < adjCount[i]; k++)
+        {
+            int v = adj[i][k];
+            PR("--> %s(%d) ", name[v], cost[i][v]);
+        }
+        PR("\n");
+    }
+    PR("\n");
+}
+
+void printCostMatrix(void)
+{
+    int i, j;
+    PR("========================================\n");
+    PR("           COST MATRIX\n");
+    PR("========================================\n\n");
+
+    PR("       ");
+    for (j = 0; j < n; j++)
+        PR("\t%s", name[j]);
+    PR("\n");
+
+    for (i = 0; i < n; i++)
+    {
+        PR("%s", name[i]);
+        for (j = 0; j < n; j++)
+        {
+            PR("\t");
+            if (cost[i][j] >= INF)
+                PR("INF");
+            else
+                PR("%d", cost[i][j]);
+        }
+        PR("\n");
+    }
+    PR("\n\n");
+}
+
+void printDistanceTable(const char *title)
+{
+    int i;
+    PR("%s\n", title);
+    PR("-------------------------------------\n");
+    PR("Router\tDistance\n");
+    for (i = 0; i < n; i++)
+    {
+        PR("%s\t", name[i]);
+        printDistStr(dist_[i]);
+        PR("\n");
+    }
+    PR("\n\n");
+}
+
+/* trace path from source s to destination d using par[] array
+   returns number of vertices in path, fills path[] from source..dest */
+int buildPath(int s, int d, int path[])
+{
+    int tmp[MAX];
+    int cnt = 0;
+    int v = d;
+    while (v != -1)
+    {
+        tmp[cnt++] = v;
+        if (v == s) break;
+        v = par[v];
+    }
+    int i;
+    for (i = 0; i < cnt; i++)
+        path[i] = tmp[cnt - 1 - i];
+    return cnt;
+}
+
+void runBellmanFord(int s)
+{
+    int i, u, k, it;
+
+    for (i = 0; i < n; i++)
+    {
+        dist_[i] = INF;
+        par[i] = -1;
+    }
+    dist_[s] = 0;
+
+    printLine();
+    PR("SOURCE ROUTER : %s\n", name[s]);
+    printLine();
+    PR("\n");
+
+    printDistanceTable("Initial Distance Table");
+
+    for (it = 1; it <= n - 1; it++)
+    {
+        int changed = 0;
+
+        printLine();
+        PR("Iteration %d\n", it);
+        printLine();
+        PR("\n");
+
+        for (u = 0; u < n; u++)
+        {
+            if (dist_[u] == INF) continue;
+
+            for (k = 0; k < adjCount[u]; k++)
+            {
+                int v = adj[u][k];
+                int w = cost[u][v];
+                int nd = dist_[u] + w;
+
+                if (nd < dist_[v])
+                {
+                    int old = dist_[v];
+
+                    PR("Relaxing Edge : %s --> %s\n", name[u], name[v]);
+                    PR("Old Distance : ");
+                    printDistStr(old);
+                    PR("\n");
+
+                    dist_[v] = nd;
+                    par[v] = u;
+
+                    PR("New Distance : ");
+                    printDistStr(dist_[v]);
+                    PR("\n");
+                    PR("Distance Updated Successfully\n\n\n");
+
+                    changed = 1;
+                }
+            }
+        }
+
+        if (!changed)
+            PR("No Relaxation Performed.\n\n");
+
+        {
+            char title[64];
+            sprintf(title, "Distance Table After Iteration %d", it);
+            printDistanceTable(title);
+        }
+    }
+
+    printLine();
+    PR("NEGATIVE CYCLE CHECK\n");
+    printLine();
+    PR("\n\n");
+
+    {
+        int negCycle = 0;
+        for (u = 0; u < n && !negCycle; u++)
+        {
+            if (dist_[u] == INF) continue;
+            for (k = 0; k < adjCount[u]; k++)
+            {
+                int v = adj[u][k];
+                int w = cost[u][v];
+                if (dist_[u] + w < dist_[v])
+                {
+                    negCycle = 1;
+                    break;
+                }
+            }
+        }
+
+        if (negCycle)
+            PR("Negative Weight Cycle Detected.\n\n");
+        else
+            PR("No Negative Weight Cycle.\n\n");
+    }
+
+    PR("==============================================\n");
+    PR("ROUTING TABLE OF ROUTER %s\n", name[s]);
+    PR("==============================================\n");
+    PR("Destination\tCost\tNext Hop\tPath\n");
+    PR("---------------------------------------------------------------\n");
+
+    for (i = 0; i < n; i++)
+    {
+        if (i == s) continue;
+
+        if (dist_[i] >= INF)
+        {
+            PR("%s\t\tINF\t-\t\t-\n", name[i]);
+            continue;
+        }
+
+        int path[MAX];
+        int cnt = buildPath(s, i, path);
+        int nextHop = (cnt >= 2) ? path[1] : i;
+
+        PR("%s\t\t%d\t%s\t\t", name[i], dist_[i], name[nextHop]);
+
+        int p;
+        for (p = 0; p < cnt; p++)
+        {
+            PR("%s", name[path[p]]);
+            if (p != cnt - 1) PR(" -> ");
+        }
+        PR("\n");
+    }
+    PR("\n");
+}
+
+int main(void)
+{
+    int i, j;
+
+    /* open out.txt - all program output will be mirrored into this file */
+    outFile = fopen("out.txt", "w");
+    if (outFile == NULL)
+    {
+        printf("Error: could not create out.txt\n");
+        return 1;
+    }
+
+    PR("====================================\n");
+    PR(" BELLMAN FORD ROUTING ALGORITHM\n");
+    PR("====================================\n\n");
+
+    /* Number of routers is read with scanf (not written into out.txt as a prompt+value pair
+       automatically since scanf itself doesn't echo), but the prompt text below IS saved */
+    printf("Enter Number of Routers : ");
+    fprintf(outFile, "Enter Number of Routers : ");
+    scanf("%d", &n);
+    fprintf(outFile, "%d\n", n);
+
+    printf("\nEnter Router Names\n");
+    fprintf(outFile, "\nEnter Router Names\n");
+    for (i = 0; i < n; i++)
+    {
+        printf("Router %d : ", i);
+        fprintf(outFile, "Router %d : ", i);
+        scanf("%s", name[i]);
+        fprintf(outFile, "%s\n", name[i]);
+    }
+
+    printf("\nEnter Cost Matrix\n\n");
+    fprintf(outFile, "\nEnter Cost Matrix\n\n");
+    printf("(Enter 999 if there is no direct connection)\n\n");
+    fprintf(outFile, "(Enter 999 if there is no direct connection)\n\n");
+
+    for (i = 0; i < n; i++)
+    {
+        for (j = 0; j < n; j++)
+        {
+            printf("Cost from %s to %s : ", name[i], name[j]);
+            fprintf(outFile, "Cost from %s to %s : ", name[i], name[j]);
+            scanf("%d", &cost[i][j]);
+            fprintf(outFile, "%d\n", cost[i][j]);
+            if (cost[i][j] == 999)
+                cost[i][j] = INF;
+        }
+    }
+
+    PR("\n");
+    printCostMatrix();
+    buildAdjacency();
+    printAdjacencyList();
+
+    for (i = 0; i < n; i++)
+    {
+        runBellmanFord(i);
+    }
+
+    fclose(outFile);
+    printf("\n[Output has been saved to out.txt]\n");
+
+    return 0;
+}
+
