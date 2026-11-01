@@ -1,0 +1,4112 @@
+[24bcs128@mepcolinux ex4]$cat diji.c
+#include <stdio.h>
+#include <ctype.h>
+#include <string.h>
+
+#define INF 999999
+
+typedef struct
+{
+    int vertexList[20];
+    int count;
+} PQueue;
+
+void InitializeQueue(PQueue *queue, int V)
+{
+    int i;
+    queue->count = 0;
+
+    for (i = 0; i < V; i++)
+    {
+        queue->vertexList[i] = i;
+        queue->count++;
+    }
+}
+
+int IsQueueEmpty(PQueue *queue)
+{
+    return queue->count == 0;
+}
+
+int DeleteMin(PQueue *queue, int dist[])
+{
+    int minPos = 0;
+    int minValue = dist[queue->vertexList[0]];
+    int vertex;
+    int i;
+
+    for (i = 1; i < queue->count; i++)
+    {
+        if (dist[queue->vertexList[i]] < minValue)
+        {
+            minValue = dist[queue->vertexList[i]];
+            minPos = i;
+        }
+    }
+
+    vertex = queue->vertexList[minPos];
+
+    for (i = minPos; i < queue->count - 1; i++)
+    {
+        queue->vertexList[i] = queue->vertexList[i + 1];
+    }
+
+    queue->count--;
+
+    return vertex;
+}
+
+void UpdatePriority(PQueue *queue, int vertex, int newDistance)
+{
+    /* Array-based priority queue.
+       Priority is determined using dist[] directly. */
+}
+
+int main()
+{
+    int V, E;
+    int graph[20][20];
+    int i, j, s, step, v, dest;
+
+    printf("Enter number of vertices: ");
+    if (scanf("%d", &V) != 1)
+        return 1;
+
+    for (i = 0; i < V; i++)
+    {
+        for (j = 0; j < V; j++)
+        {
+            graph[i][j] = 0;
+        }
+    }
+
+    printf("Enter number of edges: ");
+    if (scanf("%d", &E) != 1)
+        return 1;
+
+    printf("Enter edges (Source Destination Weight, e.g., A B 5):\n");
+
+    for (i = 0; i < E; i++)
+    {
+        char u_char, v_char;
+        int weight;
+
+        while (1)
+        {
+            if (scanf(" %c %c %d", &u_char, &v_char, &weight) != 3)
+                continue;
+
+            if (weight < 0)
+            {
+                printf("Negative weights not allowed! Re-enter edge %d: ", i + 1);
+            }
+            else
+            {
+                int u = toupper(u_char) - 'A';
+                int v_index = toupper(v_char) - 'A';
+
+                graph[u][v_index] = weight;
+                break;
+            }
+        }
+    }
+
+    for (s = 0; s < V; s++)
+    {
+        int dist[20];
+        int prev[20];
+        int hops[20];
+
+        PQueue queue;
+
+        for (i = 0; i < V; i++)
+        {
+            dist[i] = INF;
+            prev[i] = -1;
+            hops[i] = 0;
+        }
+
+        dist[s] = 0;
+
+        InitializeQueue(&queue, V);
+
+        printf("\n=======================================================================\n");
+        printf("               STEP-BY-STEP DISTANCE LOG TABLE (SOURCE: %c)\n", 'A' + s);
+        printf("=======================================================================\n");
+        printf("%-6s | %-16s | %-20s | %-22s\n",
+               "Step",
+               "Extracted Node",
+               "Path Addition",
+               "New Shortest Distance");
+        printf("-----------------------------------------------------------------------\n");
+
+        step = 1;
+
+        while (!IsQueueEmpty(&queue))
+        {
+            int u = DeleteMin(&queue, dist);
+
+            if (dist[u] == INF)
+            {
+                printf("%-6d | %-16c | %-20s | %-22s\n",
+                       step,
+                       'A' + u,
+                       "-",
+                       "Unreachable / INF");
+                step++;
+                continue;
+            }
+
+            {
+                int evaluated_edges = 0;
+
+                for (v = 0; v < V; v++)
+                {
+                    if (graph[u][v] != 0)
+                    {
+                        int edgeWeight = graph[u][v];
+                        char addMsg[50];
+                        char distMsg[50];
+
+                        evaluated_edges++;
+
+                        snprintf(addMsg,
+                                 sizeof(addMsg),
+                                 "%d + %d = %d",
+                                 dist[u],
+                                 edgeWeight,
+                                 dist[u] + edgeWeight);
+
+                        if (dist[u] + edgeWeight < dist[v] ||
+                            (dist[u] + edgeWeight == dist[v] &&
+                             (hops[u] + 1 >= hops[v])))
+                        {
+                            int oldDist = dist[v];
+
+                            dist[v] = dist[u] + edgeWeight;
+                            prev[v] = u;
+                            hops[v] = hops[u] + 1;
+
+                            UpdatePriority(&queue, v, dist[v]);
+
+                            if (oldDist == INF)
+                            {
+                                snprintf(distMsg,
+                                         sizeof(distMsg),
+                                         "INF -> %d",
+                                         dist[v]);
+                            }
+                            else if (oldDist == dist[v])
+                            {
+                                snprintf(distMsg,
+                                         sizeof(distMsg),
+                                         "%d -> %d (Alternative Path)",
+                                         oldDist,
+                                         dist[v]);
+                            }
+                            else
+                            {
+                                snprintf(distMsg,
+                                         sizeof(distMsg),
+                                         "%d -> %d (Improved!)",
+                                         oldDist,
+                                         dist[v]);
+                            }
+                        }
+                        else
+                        {
+                            snprintf(distMsg,
+                                     sizeof(distMsg),
+                                     "%d >= %d (Ignored)",
+                                     dist[u] + edgeWeight,
+                                     dist[v]);
+                        }
+
+                        printf("%-6d | %-16c | %-20s | %-22s\n",
+                               step,
+                               'A' + u,
+                               addMsg,
+                               distMsg);
+                    }
+                }
+
+                if (evaluated_edges == 0)
+                {
+                    printf("%-6d | %-16c | %-20s | %-22s\n",
+                           step,
+                           'A' + u,
+                           "-",
+                           "No Outgoing Edges");
+                }
+            }
+
+            step++;
+        }
+                printf("\n---------------------------------------------------------------------------------------------------\n");
+        printf("Source   | Destination   | Next Node to Visit   | Final Distance | Full Path\n");
+        printf("---------------------------------------------------------------------------------------------------\n");
+
+        for (dest = 0; dest < V; dest++)
+        {
+            printf("%-8c | %-13c | ", 'A' + s, 'A' + dest);
+
+            if (s == dest)
+            {
+                printf("%-20s | Dist: %-8d | %c\n",
+                       "Self (0)",
+                       0,
+                       'A' + s);
+            }
+            else if (dist[dest] == INF)
+            {
+                printf("%-20s | Dist: %-8s | No Path\n",
+                       "None",
+                       "INF");
+            }
+            else
+            {
+                int current = dest;
+
+                while (prev[current] != -1 && prev[current] != s)
+                {
+                    current = prev[current];
+                }
+
+                char nextHop = 'A' + current;
+
+                int pathNodes[20];
+                int pathCount = 0;
+
+                current = dest;
+
+                while (current != -1)
+                {
+                    pathNodes[pathCount++] = current;
+                    current = prev[current];
+                }
+
+                char fullPathStr[100] = "";
+                int pos = 0;
+
+                for (i = pathCount - 1; i >= 0; i--)
+                {
+                    if (i == 0)
+                    {
+                        pos += snprintf(fullPathStr + pos,
+                                        sizeof(fullPathStr) - pos,
+                                        "%c",
+                                        'A' + pathNodes[i]);
+                    }
+                    else
+                    {
+                        pos += snprintf(fullPathStr + pos,
+                                        sizeof(fullPathStr) - pos,
+                                        "%c -> ",
+                                        'A' + pathNodes[i]);
+                    }
+                }
+
+                printf("%c (Next Hop)          | Dist: %-8d | %s\n",
+                       nextHop,
+                       dist[dest],
+                       fullPathStr);
+            }
+        }
+
+        printf("---------------------------------------------------------------------------------------------------\n");
+    }
+
+    return 0;
+}
+[24bcs128@mepcolinux ex4]$cd ..
+[24bcs128@mepcolinux nw]$cd ex3
+[24bcs128@mepcolinux ex3]$ls
+2dreceiver.c  a.out        core.68697  hamreceiver.c       hams.c       input.txt   output.txt
+2dsender.c    channel.txt  data.txt    hamreceiver.c.save  hamsender.c  outmat.txt
+[24bcs128@mepcolinux ex3]$cd ..
+[24bcs128@mepcolinux nw]$cd ex2
+[24bcs128@mepcolinux ex2]$ls
+a.out        core.120949  core.69371  ex1.c  ex2.prn  exe1.txt  input.txt  oddr.c  oddsender.c  outout.txt  p1.c
+channel.txt  core.122549  data.txt    ex2.c  exe1.c   exe2.c    odd.c      odds.c  out.txt      output.txt  p2.c
+[24bcs128@mepcolinux ex2]$cat ex2.prn
+Script started on Fri Jul 31 14:43:06 2026
+[24bcs128@mepcolinux ex2]$cat p1.c
+#include <stdio.h>
+#include <string.h>
+#include <stdlib.h>
+#include <time.h>
+void calculateCRC(char data[], char divisor[], char remainder[]);
+struct NetworkTable
+{
+    char url[30];
+    int ip[4];
+    char mac[20];
+};
+struct NetworkTable table[20];
+int entryCount = 0;
+void equationToBinary(char equation[],char binary[])
+{
+    int degree=-1;
+    int powers[30];
+    int count=0;
+    int i,j;
+    char temp[100];
+    j=0;
+    for(i=0;equation[i]!='\0';i++)
+    {
+        if(equation[i]!=' ')
+            temp[j++]=equation[i];
+    }
+    temp[j]='\0';
+    i=0;
+    while(temp[i]!='\0')
+    {
+        if(temp[i]=='x')
+        {
+            if(temp[i+1]=='^')
+            {
+                int p=0;
+                i+=2;
+                while(temp[i]>='0' && temp[i]<='9')
+                {
+                    p=p*10+(temp[i]-'0');
+                    i++;
+                }
+                powers[count++]=p;
+                if(p>degree)
+                    degree=p;
+            }
+            else
+            {
+                powers[count++]=1;
+                if(degree<1)
+                    degree=1;
+                i++;
+            }
+        }
+        else if(temp[i]=='1')
+        {
+            powers[count++]=0;
+            if(degree<0)
+                degree=0;
+            i++;
+        }
+        else
+        {
+            i++;
+        }
+    }
+    for(i=degree;i>=0;i--)
+    {
+        binary[degree-i]='0';
+        for(j=0;j<count;j++)
+        {
+            if(powers[j]==i)
+            {
+                binary[degree-i]='1';
+                break;
+            }
+        }
+    }
+    binary[degree+1]='\0';
+}
+void computeCRC(char data[],char divisor[],char remainder[])
+{
+    char temp[512];
+    int dataLen = strlen(data);
+    int divLen = strlen(divisor);
+    int i, j;
+    strcpy(temp, data);
+    for(i = 0; i < divLen - 1; i++)
+        temp[dataLen + i] = '0';
+    temp[dataLen + divLen - 1] = '\0';
+    for(i = 0; i < dataLen; i++)
+    {
+        if(temp[i] == '1')
+        {
+            for(j = 0; j < divLen; j++)
+            {
+                if(temp[i + j] == divisor[j])
+                    temp[i + j] = '0';
+                else
+                    temp[i + j] = '1';
+            }
+        }
+    }
+    for(i = 0; i < divLen - 1; i++)
+        remainder[i] = temp[dataLen + i];
+    remainder[divLen - 1] = '\0';
+}
+
+void writeFrameStreamToFile(const char *filename, int totalPackets, int charSize, int totalLen, int frameBitSize,
+                            const char *buffer, char divisor[], const char *srcMacBin, const char *destMacBin,
+                            const char *ipBinSrc, const char *ipBinDest, const char *srcPortBin, const char *destPortBin)
+{
+    FILE *outFile = fopen("output.txt", "w");
+    if (outFile == NULL)
+    {
+        printf("Error: Could not create output file %s!\n", filename);
+        return;
+    }
+    fprintf(outFile, "----------------------------------------\n");
+    fprintf(outFile, " COMPLETE BINARY FRAME STREAM OUTPUT\n");
+    fprintf(outFile, "------------------------------------------\n\n");
+    int currentFrameNum = 1;
+    int pIdx, frameInPacket, b;
+    for (pIdx = 0; pIdx < totalPackets; pIdx++) {
+        int byteStart = pIdx * charSize;
+        int bytesInPacket = charSize;
+        if (byteStart + bytesInPacket > totalLen)
+        {
+            bytesInPacket = totalLen - byteStart;
+        }
+        int bitsInPacket = bytesInPacket * 8;
+        int framesForPacket = (bitsInPacket + (frameBitSize - 1)) / frameBitSize;
+        for (frameInPacket = 1; frameInPacket <= framesForPacket; frameInPacket++)
+        {
+            int payloadBits = frameBitSize;
+            int paddingBits = 0;
+            char payloadString[128];
+            int bitStart = (frameInPacket - 1) * frameBitSize;
+            if (bitStart + payloadBits > bitsInPacket)
+            {
+                payloadBits = bitsInPacket - bitStart;
+                paddingBits = frameBitSize - payloadBits;
+            }
+            for (b = 0; b < payloadBits; b++) {
+                int BitPos = bitStart + b;
+                int charset = BitPos / 8;
+                int bitShift = 7 - (BitPos % 8);
+                int bitVal = (buffer[byteStart + charset] >> bitShift) & 1;
+                payloadString[b] = bitVal ? '1' : '0';
+            }
+            payloadString[payloadBits] = '\0';
+            char fullPayloadWithPadding[256];
+            strcpy(fullPayloadWithPadding, payloadString);
+            for(b = 0; b < paddingBits; b++) {
+                strcat(fullPayloadWithPadding, "0");
+            }
+            char crcRemainder[32];
+            computeCRC(fullPayloadWithPadding, divisor, crcRemainder);
+            fprintf(outFile, "Frame %d Stream: %s %s %s %s %s %s %s",
+                    currentFrameNum, srcMacBin, destMacBin, ipBinSrc, ipBinDest, srcPortBin, destPortBin, payloadString);
+            for(b = 0; b < paddingBits; b++) {
+                fprintf(outFile, "0");
+            }
+            fprintf(outFile, " %s\n", crcRemainder);
+            currentFrameNum++;
+        }
+    }
+    fclose(outFile);
+}
+int Binary(int num, char *str)
+{
+    int temp = num;
+    int i;
+    for(i = 0; i < 8; i++)
+    {
+        str[i] = '0';
+    }
+    str[8] = '\0';
+    for (i = 7; i >= 0; i--)
+    {
+        if (temp % 2 == 1)
+        {
+            str[i] = '1';
+        } else {
+            str[i] = '0';
+        }
+        temp = temp / 2;
+    }
+    return 1;
+}
+int portToBinary(int port, char *str)
+{
+    int highByte = port / 256;
+    int lowByte = port % 256;
+    int i;
+    int index = 0;
+    char highbin[9], lowbin[9];
+    Binary(highByte, highbin);
+    Binary(lowByte, lowbin);
+    for(i = 0; i < 8; i++)
+    {
+        str[index] = highbin[i];
+        index++;
+    }
+    str[index] = ' ';
+    index++;
+    for(i = 0; i < 8; i++) {
+        str[index] = lowbin[i];
+        index++;
+    }
+    str[index] = '\0';
+    return 1;
+}
+int macToBinary(const char *mac, char *str)
+{
+    int len = (int)strlen(mac);
+    int Idx = 0;
+    int Count = 0;
+    int i, j;
+    for (i = 0; i < len; i++)
+    {
+        char c;
+        int digit = 0;
+        int temp;
+        if (mac[i] == ':')
+        {
+            continue;
+        }
+        c = mac[i];
+        if (c >= '0' && c <= '9') digit = c - '0';
+        else if (c >= 'A' && c <= 'F') digit = c - 'A' + 10;
+        else if (c >= 'a' && c <= 'f') digit = c - 'a' + 10;
+        temp = digit;
+        for (j = 3; j >= 0; j--)
+        {
+            if (temp % 2 == 1)
+            {
+                str[Idx + j] = '1';
+            }
+            else
+            {
+                str[Idx + j] = '0';
+            }
+            temp = temp / 2;
+        }
+        Idx += 4;
+        Count++;
+        if (Count % 2 == 0 && i < len - 1) {
+            str[Idx] = ' ';
+            Idx++;
+        }
+    }
+    str[Idx] = '\0';
+    return 1;
+}
+void displayTable() {
+    int i;
+    printf("\n--------------- NETWORK ROUTING TABLE --------------------\n");
+    printf("%-20s | %-15s | %-15s\n", "URL", "IP Address", "MAC Address");
+    printf("------------------------------------------------------------\n");
+    for (i = 0; i < entryCount; i++) {
+        printf("%-20s | %3d.%-3d.%-3d.%-3d | %-15s\n",
+               table[i].url, table[i].ip[0], table[i].ip[1], table[i].ip[2], table[i].ip[3], table[i].mac);
+    }
+    printf("--------------------------------------------------------------\n");
+}
+int printApplicationLayer(const char *buffer, int totalLen) {
+    int i;
+    printf("\n---------------------------------\n");
+    printf(" LAYER 1 : APPLICATION LAYER\n");
+    printf("---------------------------------\n");
+    printf("  Message        : %s\n", buffer);
+    printf("  Binary Format  : ");
+    for (i = 0; i < totalLen; i++) {
+        char binaryStr[9];
+        Binary((int)buffer[i], binaryStr);
+        printf("%s%s", binaryStr, (i < totalLen - 1) ? " " : "");
+    }
+    printf("\n");
+    return 1;
+}
+int printTransportLayer(int srcPort, const char *buffer, int totalLen) {
+    int destPort = 50054;
+    int i;
+    char srcPortBin[30], destPortBin[30];
+    portToBinary(srcPort, srcPortBin);
+    portToBinary(destPort, destPortBin);
+    printf("\n--------------------------------------------\n");
+    printf(" LAYER 2 : TRANSPORT LAYER (SEGMENT)\n");
+    printf("--------------------------------------------\n");
+    printf("  Source Port              : %d \n", srcPort);
+    printf("  Destination Port         : %d\n", destPort);
+    printf("---------------------------------------------\n");
+    printf(" Binary Format\n");
+    printf(" Source Port               : %s\n", srcPortBin);
+    printf(" Destination Port          : %s\n", destPortBin);
+    printf("---------------------------------------------\n");
+    printf(" Layer Output:\n");
+    printf("%s %s ", srcPortBin, destPortBin);
+    for (i = 0; i < totalLen; i++) {
+        char binaryStr[9];
+        Binary((int)buffer[i], binaryStr);
+        printf("%s%s", binaryStr, (i < totalLen - 1) ? " " : "");
+    }
+    printf("\n");
+    return 1;
+}
+int printNetworkLayer(int sIdx, int dIdx, const char *buffer, int totalLen, int packetBitSize, int srcPort) {
+    int i, k, m;
+    int packetCount = 0;
+    char pBin[9];
+    char ipBinSrc[50], ipBinDest[50], tempIp[9];
+    char srcPortBin[30], destPortBin[30];
+    int charSize = packetBitSize / 8;
+    if (charSize < 1) charSize = 2;
+    portToBinary(srcPort, srcPortBin);
+    portToBinary(50054, destPortBin);
+    ipBinSrc[0] = '\0';
+    for(i = 0; i < 4; i++) {
+        Binary(table[sIdx].ip[i], tempIp);
+        strcat(ipBinSrc, tempIp);
+        if(i < 3) strcat(ipBinSrc, " ");
+    }
+    ipBinDest[0] = '\0';
+    for(i = 0; i < 4; i++) {
+        Binary(table[dIdx].ip[i], tempIp);
+        strcat(ipBinDest, tempIp);
+        if(i < 3) strcat(ipBinDest, " ");
+    }
+    printf("\n---------------------------------------\n");
+    printf(" LAYER 3 : NETWORK LAYER \n");
+    printf("----------------------------------------\n");
+    for (i = 0; i < totalLen; i += charSize) {
+        int currentLength = charSize;
+        if (i + currentLength > totalLen) {
+            currentLength = totalLen - i;
+        }
+        packetCount++;
+        printf(" Packet %d\n", packetCount);
+        printf("  Source IP        : %d.%d.%d.%d\n", table[sIdx].ip[0], table[sIdx].ip[1], table[sIdx].ip[2], table[sIdx].ip[3]);
+        printf("  Destination IP   : %d.%d.%d.%d\n", table[dIdx].ip[0], table[dIdx].ip[1], table[dIdx].ip[2], table[dIdx].ip[3]);
+        printf("----------------------------------------\n");
+        printf(" Packet Binary Output:\n");
+        printf("%s %s %s %s ", ipBinSrc, ipBinDest, srcPortBin, destPortBin);
+        for (k = 0; k < currentLength; k++) {
+            Binary((int)buffer[i + k], pBin);
+            printf("%s%s", pBin, (k < currentLength - 1) ? " " : "");
+        }
+        printf("\n\n");
+    }
+    printf(" Combined Fragmented Stream:\n ");
+    for (m = 0; m < totalLen; m += charSize) {
+        int currentLength = charSize;
+        if (m + currentLength > totalLen) {
+            currentLength = totalLen - m;
+        }
+        printf("%s %s %s %s ", ipBinSrc, ipBinDest, srcPortBin, destPortBin);
+        for (k = 0; k < currentLength; k++) {
+            Binary((int)buffer[m + k], pBin);
+            printf("%s", pBin);
+            if (k < currentLength - 1) printf(" ");
+        }
+        if (m + charSize < totalLen) printf(" ");
+    }
+    printf("\n");
+    return packetCount;
+}
+int printDataLinkLabel(int sIdx, int dIdx, const char *buffer, int totalLen, int srcPort, int packetBitSize, int frameBitSize,char divisor[]) {
+    int i;
+    int charSize = packetBitSize / 8;
+    if (charSize < 1) charSize = 2;
+    int totalPackets = (totalLen + (charSize - 1)) / charSize;
+    int grandTotalFrames = 0;
+    char srcMacBin[100], destMacBin[100];
+    char srcPortBin[30], destPortBin[30];
+    char ipBinSrc[50], ipBinDest[50], temp[9];
+    macToBinary(table[sIdx].mac, srcMacBin);
+    macToBinary(table[dIdx].mac, destMacBin);
+    portToBinary(srcPort, srcPortBin);
+    portToBinary(50054, destPortBin);
+    ipBinSrc[0] = '\0';
+    for(i = 0; i < 4; i++) {
+        Binary(table[sIdx].ip[i], temp);
+        strcat(ipBinSrc, temp);
+        if(i < 3) strcat(ipBinSrc, " ");
+    }
+    ipBinDest[0] = '\0';
+    for(i = 0; i < 4; i++) {
+        Binary(table[dIdx].ip[i], temp);
+        strcat(ipBinDest, temp);
+        if(i < 3) strcat(ipBinDest, " ");
+    }
+    int currentFrameNum = 1;
+    int pIdx, frameInPacket;
+    printf("\n-------------------------------\n");
+    printf(" LAYER 4 : DATA LINK LAYER \n");
+    printf("---------------------------------\n");
+    writeFrameStreamToFile("frame_output.txt", totalPackets, charSize, totalLen, frameBitSize, buffer, divisor, srcMacBin, destMacBin, ipBinSrc, ipBinDest, srcPortBin, destPortBin);
+    for(pIdx = 0; pIdx < totalPackets; pIdx++) {
+        int byteStart = pIdx * charSize;
+        int bytesInPacket = charSize;
+        if (byteStart + bytesInPacket > totalLen) {
+            bytesInPacket = totalLen - byteStart;
+        }
+        int bitsInPacket = bytesInPacket * 8;
+        int framesForPacket = (bitsInPacket + (frameBitSize - 1)) / frameBitSize;
+        printf("\n--------------------------------------------------------------\n");
+        printf("PACKET %d (Contains %d Bits)\n", pIdx + 1, bitsInPacket);
+        printf("--------------------------------------------------------------\n");
+        for (frameInPacket = 1; frameInPacket <= framesForPacket; frameInPacket++) {
+            int payloadBits = frameBitSize;
+            int paddingBits = 0;
+            char payloadString[128];
+            int bitStart = (frameInPacket - 1) * frameBitSize;
+            if (bitStart + payloadBits > bitsInPacket) {
+                payloadBits = bitsInPacket - bitStart;
+                paddingBits = frameBitSize - payloadBits;
+            }
+            int b;
+            for (b = 0; b < payloadBits; b++) {
+                int BitPos = bitStart + b;
+                int charset = BitPos / 8;
+                int bitShift = 7 - (BitPos % 8);
+                int bitVal = (buffer[byteStart + charset] >> bitShift) & 1;
+                payloadString[b] = bitVal ? '1' : '0';
+            }
+            payloadString[payloadBits] = '\0';
+            char fullPayloadWithPadding[256];
+            strcpy(fullPayloadWithPadding, payloadString);
+            for(b = 0; b < paddingBits; b++) {
+                strcat(fullPayloadWithPadding, "0");
+            }
+            char crcRemainder[4];
+            computeCRC(fullPayloadWithPadding, divisor, crcRemainder);
+            printf("\nFrame %d\n", currentFrameNum);
+            printf("  Source MAC      : %s\n", table[sIdx].mac);
+            printf("  Destination MAC : %s\n", table[dIdx].mac);
+            printf("  Payload Bits    : %d\n", payloadBits);
+            printf("  Payload Text    : %s\n", payloadString);
+            printf("  Padding Bits    : %d\n", paddingBits);
+            if (paddingBits > 0) {
+                printf("  Padding Content : ");
+                for(b = 0; b < paddingBits; b++) printf("0");
+                printf("\n");
+            }
+            printf("  Error Control   : %s (CRC-3 via x^3+x+1)\n", crcRemainder);
+            currentFrameNum++;
+            grandTotalFrames++;
+        }
+    }
+    printf("\n----------------------------------------\n");
+    printf(" COMPLETE BINARY FRAME STREAM OUTPUT\n");
+    printf("------------------------------------------\n\n");
+    currentFrameNum = 1;
+    for (pIdx = 0; pIdx < totalPackets; pIdx++) {
+        int byteStart = pIdx * charSize;
+        int bytesInPacket = charSize;
+        if (byteStart + bytesInPacket > totalLen) {
+            bytesInPacket = totalLen - byteStart;
+        }
+        int bitsInPacket = bytesInPacket * 8;
+        int framesForPacket = (bitsInPacket + (frameBitSize - 1)) / frameBitSize;
+        for (frameInPacket = 1; frameInPacket <= framesForPacket; frameInPacket++) {
+            int payloadBits = frameBitSize;
+            int paddingBits = 0;
+            char payloadString[128];
+            int bitStart = (frameInPacket - 1) * frameBitSize;
+            if (bitStart + payloadBits > bitsInPacket) {
+                payloadBits = bitsInPacket - bitStart;
+                paddingBits = frameBitSize - payloadBits;
+            }
+            int b;
+            for (b = 0; b < payloadBits; b++) {
+                int BitPos = bitStart + b;
+                int charset = BitPos / 8;
+                int bitShift = 7 - (BitPos % 8);
+                int bitVal = (buffer[byteStart + charset] >> bitShift) & 1;
+                payloadString[b] = bitVal ? '1' : '0';
+            }
+            payloadString[payloadBits] = '\0';
+            char fullPayloadWithPadding[256];
+            strcpy(fullPayloadWithPadding, payloadString);
+            for(b = 0; b < paddingBits; b++) {
+                strcat(fullPayloadWithPadding, "0");
+            }
+            char crcRemainder[4];
+            computeCRC(fullPayloadWithPadding,divisor, crcRemainder);
+            printf("Frame %d Stream: %s %s %s %s %s %s %s", currentFrameNum, srcMacBin, destMacBin, ipBinSrc, ipBinDest, srcPortBin, destPortBin, payloadString);
+            for(b = 0; b < paddingBits; b++) printf("0");
+            printf(" %s\n", crcRemainder);
+            currentFrameNum++;
+        }
+    }
+    return grandTotalFrames;
+}
+int printPhysicalLayer(int sIdx, int dIdx, const char *buffer, int totalLen, int srcPort, int packetBitSize, int frameBitSize,char divisor[]) {
+    int i;
+    int charSize = packetBitSize / 8;
+    if (charSize < 1) charSize = 2;
+    int totalPackets = (totalLen + (charSize - 1)) / charSize;
+    int frameInPacket, pIdx, b;
+    char srcMacBin[100], destMacBin[100];
+    char srcPortBin[30], destPortBin[30];
+    char ipBinSrc[50], ipBinDest[50], temp[9];
+    macToBinary(table[sIdx].mac, srcMacBin);
+    macToBinary(table[dIdx].mac, destMacBin);
+    portToBinary(srcPort, srcPortBin);
+    portToBinary(50054, destPortBin);
+    ipBinSrc[0] = '\0';
+    for (i = 0; i < 4; i++) {
+        Binary(table[sIdx].ip[i], temp);
+        strcat(ipBinSrc, temp);
+        if (i < 3) strcat(ipBinSrc, " ");
+    }
+    ipBinDest[0] = '\0';
+    for (i = 0; i < 4; i++) {
+        Binary(table[dIdx].ip[i], temp);
+        strcat(ipBinDest, temp);
+        if (i < 3) strcat(ipBinDest, " ");
+    }
+    printf("\n------------------------------------\n");
+    printf(" LAYER 5 : PHYSICAL LAYER\n");
+    printf("--------------------------------------\n\n");
+    for (pIdx = 0; pIdx < totalPackets; pIdx++) {
+        int byteStart = pIdx * charSize;
+        int bytesInPacket = charSize;
+        if (byteStart + bytesInPacket > totalLen) {
+            bytesInPacket = totalLen - byteStart;
+        }
+        int bitsInPacket = bytesInPacket * 8;
+        int framesForPacket = (bitsInPacket + (frameBitSize - 1)) / frameBitSize;
+        for (frameInPacket = 1; frameInPacket <= framesForPacket; frameInPacket++) {
+            int payloadBits = frameBitSize;
+            int paddingBits = 0;
+            char payloadString[128];
+            int bitStart = (frameInPacket - 1) * frameBitSize;
+            if (bitStart + payloadBits > bitsInPacket) {
+                payloadBits = bitsInPacket - bitStart;
+                paddingBits = frameBitSize - payloadBits;
+            }
+            for (b = 0; b < payloadBits; b++) {
+                int BitPos = bitStart + b;
+                int charset = BitPos / 8;
+                int bitShift = 7 - (BitPos % 8);
+                int bitVal = (buffer[byteStart + charset] >> bitShift) & 1;
+                payloadString[b] = bitVal ? '1' : '0';
+            }
+            payloadString[payloadBits] = '\0';
+            char fullPayloadWithPadding[256];
+            strcpy(fullPayloadWithPadding, payloadString);
+            for (b = 0; b < paddingBits; b++) {
+                strcat(fullPayloadWithPadding, "0");
+            }
+            char crcRemainder[4];
+            computeCRC(fullPayloadWithPadding, divisor, crcRemainder);
+            printf("%s%s%s%s%s%s%s", srcMacBin, destMacBin, ipBinSrc, ipBinDest, srcPortBin, destPortBin, payloadString);
+            for (b = 0; b < paddingBits; b++) printf("0");
+            printf("%s", crcRemainder);
+        }
+    }
+    printf("\n");
+    return 1;
+}
+int printTransmission(int sIdx, int dIdx, const char *buffer, int totalFrames, int srcPort) {
+    printf("\n--------------------------\n");
+    printf(" TRANSMISSION \n");
+    printf("----------------------------\n");
+    printf("  Total Frames Sent  : %d\n", totalFrames);
+    printf("  Complete Message   : %s\n", buffer);
+    printf("  Source Port        : %-14d | Destination Port    : 50054\n", srcPort);
+    printf("  Source IP          : %d.%d.%d.%d  | Destination IP      : %d.%d.%d.%d\n",
+           table[sIdx].ip[0], table[sIdx].ip[1], table[sIdx].ip[2], table[sIdx].ip[3],
+           table[dIdx].ip[0], table[dIdx].ip[1], table[dIdx].ip[2], table[dIdx].ip[3]);
+    printf("  Source MAC         : %s  | Destination MAC     : %s\n", table[sIdx].mac, table[dIdx].mac);
+    return 1;
+}
+void executeNetwork(int sIdx, int dIdx, const char *buffer, int totalLen, int srcPort, int packetBitSize, int frameBitSize,char divisor[]) {
+    int totalFrames;
+    printApplicationLayer(buffer, totalLen);
+    printTransportLayer(srcPort, buffer, totalLen);
+    printNetworkLayer(sIdx, dIdx, buffer, totalLen, packetBitSize, srcPort);
+    totalFrames = printDataLinkLabel(sIdx, dIdx, buffer, totalLen, srcPort, packetBitSize, frameBitSize,divisor);
+    printPhysicalLayer(sIdx, dIdx, buffer, totalLen, srcPort, packetBitSize, frameBitSize,divisor);
+    printTransmission(sIdx, dIdx, buffer, totalFrames, srcPort);
+}
+int main() {
+    int sIdx = -1, dIdx = -1;
+    int len;
+    int packetBitSize, frameBitSize;
+    int randomSrcPort;
+    char src[30];
+    char dest[30];
+    char fileName[30];
+    char buffer[100];
+    char delUrl[30];
+    FILE *fp;
+    char polyEquation[50];
+    char polyDivisor[50];
+    srand((unsigned int)time(NULL));
+    strcpy(table[0].url, "client.lan");
+    table[0].ip[0] = 192; table[0].ip[1] = 168; table[0].ip[2] = 1; table[0].ip[3] = 10;
+    strcpy(table[0].mac, "AA:BB:CC:DD:EE:FF");
+    strcpy(table[1].url, "google.com");
+    table[1].ip[0] = 142; table[1].ip[1] = 250; table[1].ip[2] = 190; table[1].ip[3] = 46;
+    strcpy(table[1].mac, "11:22:33:44:55:66");
+    entryCount = 2;
+            printf("Enter Source URL: ");
+                    scanf("%s", src);
+        printf("Enter Destination URL: ");
+        scanf("%s", dest);
+        printf("Enter Generator Polynomial Equation (e.g. x^3+x+1): ");
+        scanf("%s", polyEquation);
+        equationToBinary(polyEquation, polyDivisor);
+        printf("Converted Polynomial Binary Divisor: %s\n", polyDivisor);
+        sIdx = -1;
+        dIdx = -1;
+        int i;
+        for (i = 0; i < entryCount; i++) {
+            if (strcmp(table[i].url, src) == 0) sIdx = i;
+            if (strcmp(table[i].url, dest) == 0) dIdx = i;
+        }
+        if (sIdx == -1 || dIdx == -1) {
+            printf("Error: Source or Destination Node not matching in Routing Table!\n");
+        }
+        printf("Enter Input File Name : ");
+        scanf("%s", fileName);
+        fp = fopen(fileName, "r");
+        if(fp == NULL)
+        {
+           printf("\nFile Not Found.\n");
+           return 0;
+        }
+        fgets(buffer, sizeof(buffer), fp);
+        fclose(fp);
+        printf("Enter Packet Size (bits): ");
+        scanf("%d", &packetBitSize);
+        printf("Enter Frame Size (bits): ");
+        scanf("%d", &frameBitSize);
+        randomSrcPort = rand() % (65535 - 49152 + 1) + 49152;
+        executeNetwork(sIdx, dIdx, buffer, strlen(buffer), randomSrcPort, packetBitSize, frameBitSize,polyDivisor);
+        return 0;
+}
+[24bcs128@mepcolinux ex2]$cc p1.c
+[24bcs128@mepcolinux ex2]$./a.out
+Enter Source URL: google.com
+Enter Destination URL: client.lan
+Enter Generator Polynomial Equation (e.g. x^3+x+1): x^4+x+1
+Converted Polynomial Binary Divisor: 10011
+Enter Input File Name : input.txt
+Enter Packet Size (bits): 16
+Enter Frame Size (bits): 10
+
+---------------------------------
+ LAYER 1 : APPLICATION LAYER
+---------------------------------
+  Message        : Hello Abi
+
+  Binary Format  : 01001000 01100101 01101100 01101100 01101111 00100000 01000001 01100010 01101001 00001010
+
+--------------------------------------------
+ LAYER 2 : TRANSPORT LAYER (SEGMENT)
+--------------------------------------------
+  Source Port              : 64360
+  Destination Port         : 50054
+---------------------------------------------
+ Binary Format
+ Source Port               : 11111011 01101000
+ Destination Port          : 11000011 10000110
+---------------------------------------------
+ Layer Output:
+11111011 01101000 11000011 10000110 01001000 01100101 01101100 01101100 01101111 00100000 01000001 01100010 01101001 00001010
+
+---------------------------------------
+ LAYER 3 : NETWORK LAYER
+----------------------------------------
+ Packet 1
+  Source IP        : 142.250.190.46
+  Destination IP   : 192.168.1.10
+----------------------------------------
+ Packet Binary Output:
+10001110 11111010 10111110 00101110 11000000 10101000 00000001 00001010 11111011 01101000 11000011 10000110 01001000 01100101
+
+ Packet 2
+  Source IP        : 142.250.190.46
+  Destination IP   : 192.168.1.10
+----------------------------------------
+ Packet Binary Output:
+10001110 11111010 10111110 00101110 11000000 10101000 00000001 00001010 11111011 01101000 11000011 10000110 01101100 01101100
+
+ Packet 3
+  Source IP        : 142.250.190.46
+  Destination IP   : 192.168.1.10
+----------------------------------------
+ Packet Binary Output:
+10001110 11111010 10111110 00101110 11000000 10101000 00000001 00001010 11111011 01101000 11000011 10000110 01101111 00100000
+
+ Packet 4
+  Source IP        : 142.250.190.46
+  Destination IP   : 192.168.1.10
+----------------------------------------
+ Packet Binary Output:
+10001110 11111010 10111110 00101110 11000000 10101000 00000001 00001010 11111011 01101000 11000011 10000110 01000001 01100010
+
+ Packet 5
+  Source IP        : 142.250.190.46
+  Destination IP   : 192.168.1.10
+----------------------------------------
+ Packet Binary Output:
+10001110 11111010 10111110 00101110 11000000 10101000 00000001 00001010 11111011 01101000 11000011 10000110 01101001 00001010
+
+ Combined Fragmented Stream:
+ 10001110 11111010 10111110 00101110 11000000 10101000 00000001 00001010 11111011 01101000 11000011 10000110 01001000 01100101 10001110 11111010 10111110 00101110 11000000 10101000 00000001 00001010 11111011 01101000 11000011 10000110 01101100 01101100 10001110 11111010 10111110 00101110 11000000 10101000 00000001 00001010 11111011 01101000 11000011 10000110 01101111 00100000 10001110 11111010 10111110 00101110 11000000 10101000 00000001 00001010 11111011 01101000 11000011 10000110 01000001 01100010 10001110 11111010 10111110 00101110 11000000 10101000 00000001 00001010 11111011 01101000 11000011 10000110 01101001 00001010
+
+-------------------------------
+ LAYER 4 : DATA LINK LAYER
+---------------------------------
+
+--------------------------------------------------------------
+PACKET 1 (Contains 16 Bits)
+--------------------------------------------------------------
+
+Frame 1
+  Source MAC      : 11:22:33:44:55:66
+  Destination MAC : AA:BB:CC:DD:EE:FF
+  Payload Bits    : 10
+  Payload Text    : 0100100001
+  Padding Bits    : 0
+  Error Control   : 0110 (CRC-3 via x^3+x+1)
+
+Frame 2
+  Source MAC      : 11:22:33:44:55:66
+  Destination MAC : AA:BB:CC:DD:EE:FF
+  Payload Bits    : 6
+  Payload Text    : 100101
+  Padding Bits    : 4
+  Padding Content : 0000
+  Error Control   : 1111 (CRC-3 via x^3+x+1)
+
+--------------------------------------------------------------
+PACKET 2 (Contains 16 Bits)
+--------------------------------------------------------------
+
+Frame 3
+  Source MAC      : 11:22:33:44:55:66
+  Destination MAC : AA:BB:CC:DD:EE:FF
+  Payload Bits    : 10
+  Payload Text    : 0110110001
+  Padding Bits    : 0
+  Error Control   : 1101 (CRC-3 via x^3+x+1)
+
+Frame 4
+  Source MAC      : 11:22:33:44:55:66
+  Destination MAC : AA:BB:CC:DD:EE:FF
+  Payload Bits    : 6
+  Payload Text    : 101100
+  Padding Bits    : 4
+  Padding Content : 0000
+  Error Control   : 0100 (CRC-3 via x^3+x+1)
+
+--------------------------------------------------------------
+PACKET 3 (Contains 16 Bits)
+--------------------------------------------------------------
+
+Frame 5
+  Source MAC      : 11:22:33:44:55:66
+  Destination MAC : AA:BB:CC:DD:EE:FF
+  Payload Bits    : 10
+  Payload Text    : 0110111100
+  Padding Bits    : 0
+  Error Control   : 1001 (CRC-3 via x^3+x+1)
+
+Frame 6
+  Source MAC      : 11:22:33:44:55:66
+  Destination MAC : AA:BB:CC:DD:EE:FF
+  Payload Bits    : 6
+  Payload Text    : 100000
+  Padding Bits    : 4
+  Padding Content : 0000
+  Error Control   : 1101 (CRC-3 via x^3+x+1)
+
+--------------------------------------------------------------
+PACKET 4 (Contains 16 Bits)
+--------------------------------------------------------------
+
+Frame 7
+  Source MAC      : 11:22:33:44:55:66
+  Destination MAC : AA:BB:CC:DD:EE:FF
+  Payload Bits    : 10
+  Payload Text    : 0100000101
+  Padding Bits    : 0
+  Error Control   : 0000 (CRC-3 via x^3+x+1)
+
+Frame 8
+  Source MAC      : 11:22:33:44:55:66
+  Destination MAC : AA:BB:CC:DD:EE:FF
+  Payload Bits    : 6
+  Payload Text    : 100010
+  Padding Bits    : 4
+  Padding Content : 0000
+  Error Control   : 0111 (CRC-3 via x^3+x+1)
+
+--------------------------------------------------------------
+PACKET 5 (Contains 16 Bits)
+--------------------------------------------------------------
+
+Frame 9
+  Source MAC      : 11:22:33:44:55:66
+  Destination MAC : AA:BB:CC:DD:EE:FF
+  Payload Bits    : 10
+  Payload Text    : 0110100100
+  Padding Bits    : 0
+  Error Control   : 0111 (CRC-3 via x^3+x+1)
+
+Frame 10
+  Source MAC      : 11:22:33:44:55:66
+  Destination MAC : AA:BB:CC:DD:EE:FF
+  Payload Bits    : 6
+  Payload Text    : 001010
+  Padding Bits    : 4
+  Padding Content : 0000
+  Error Control   : 0100 (CRC-3 via x^3+x+1)
+
+----------------------------------------
+ COMPLETE BINARY FRAME STREAM OUTPUT
+------------------------------------------
+
+Frame 1 Stream: 00010001 00100010 00110011 01000100 01010101 01100110 10101010 10111011 11001100 11011101 11101110 11111111 10001110 11111010 10111110 00101110 11000000 10101000 00000001 00001010 11111011 01101000 11000011 10000110 0100100001 0110
+Frame 2 Stream: 00010001 00100010 00110011 01000100 01010101 01100110 10101010 10111011 11001100 11011101 11101110 11111111 10001110 11111010 10111110 00101110 11000000 10101000 00000001 00001010 11111011 01101000 11000011 10000110 1001010000 1111
+Frame 3 Stream: 00010001 00100010 00110011 01000100 01010101 01100110 10101010 10111011 11001100 11011101 11101110 11111111 10001110 11111010 10111110 00101110 11000000 10101000 00000001 00001010 11111011 01101000 11000011 10000110 0110110001 1101
+Frame 4 Stream: 00010001 00100010 00110011 01000100 01010101 01100110 10101010 10111011 11001100 11011101 11101110 11111111 10001110 11111010 10111110 00101110 11000000 10101000 00000001 00001010 11111011 01101000 11000011 10000110 1011000000 0100
+Frame 5 Stream: 00010001 00100010 00110011 01000100 01010101 01100110 10101010 10111011 11001100 11011101 11101110 11111111 10001110 11111010 10111110 00101110 11000000 10101000 00000001 00001010 11111011 01101000 11000011 10000110 0110111100 1001
+Frame 6 Stream: 00010001 00100010 00110011 01000100 01010101 01100110 10101010 10111011 11001100 11011101 11101110 11111111 10001110 11111010 10111110 00101110 11000000 10101000 00000001 00001010 11111011 01101000 11000011 10000110 1000000000 1101
+Frame 7 Stream: 00010001 00100010 00110011 01000100 01010101 01100110 10101010 10111011 11001100 11011101 11101110 11111111 10001110 11111010 10111110 00101110 11000000 10101000 00000001 00001010 11111011 01101000 11000011 10000110 0100000101 0000
+Frame 8 Stream: 00010001 00100010 00110011 01000100 01010101 01100110 10101010 10111011 11001100 11011101 11101110 11111111 10001110 11111010 10111110 00101110 11000000 10101000 00000001 00001010 11111011 01101000 11000011 10000110 1000100000 0111
+Frame 9 Stream: 00010001 00100010 00110011 01000100 01010101 01100110 10101010 10111011 11001100 11011101 11101110 11111111 10001110 11111010 10111110 00101110 11000000 10101000 00000001 00001010 11111011 01101000 11000011 10000110 0110100100 0111
+Frame 10 Stream: 00010001 00100010 00110011 01000100 01010101 01100110 10101010 10111011 11001100 11011101 11101110 11111111 10001110 11111010 10111110 00101110 11000000 10101000 00000001 00001010 11111011 01101000 11000011 10000110 0010100000 0100
+
+------------------------------------
+ LAYER 5 : PHYSICAL LAYER
+--------------------------------------
+
+00010001 00100010 00110011 01000100 01010101 0110011010101010 10111011 11001100 11011101 11101110 1111111110001110 11111010 10111110 0010111011000000 10101000 00000001 0000101011111011 0110100011000011 100001100100100001011000010001 00100010 00110011 01000100 01010101 0110011010101010 10111011 11001100 11011101 11101110 1111111110001110 11111010 10111110 0010111011000000 10101000 00000001 0000101011111011 0110100011000011 100001101001010000111100010001 00100010 00110011 01000100 01010101 0110011010101010 10111011 11001100 11011101 11101110 1111111110001110 11111010 10111110 0010111011000000 10101000 00000001 0000101011111011 0110100011000011 100001100110110001110100010001 00100010 00110011 01000100 01010101 0110011010101010 10111011 11001100 11011101 11101110 1111111110001110 11111010 10111110 0010111011000000 10101000 00000001 0000101011111011 0110100011000011 100001101011000000010000010001 00100010 00110011 01000100 01010101 0110011010101010 10111011 11001100 11011101 11101110 1111111110001110 11111010 10111110 0010111011000000 10101000 00000001 0000101011111011 0110100011000011 100001100110111100100100010001 00100010 00110011 01000100 01010101 0110011010101010 10111011 11001100 11011101 11101110 1111111110001110 11111010 10111110 0010111011000000 10101000 00000001 0000101011111011 0110100011000011 100001101000000000110100010001 00100010 00110011 01000100 01010101 0110011010101010 10111011 11001100 11011101 11101110 1111111110001110 11111010 10111110 0010111011000000 10101000 00000001 0000101011111011 0110100011000011 100001100100000101000000010001 00100010 00110011 01000100 01010101 0110011010101010 10111011 11001100 11011101 11101110 1111111110001110 11111010 10111110 0010111011000000 10101000 00000001 0000101011111011 0110100011000011 100001101000100000011100010001 00100010 00110011 01000100 01010101 0110011010101010 10111011 11001100 11011101 11101110 1111111110001110 11111010 10111110 0010111011000000 10101000 00000001 0000101011111011 0110100011000011 100001100110100100011100010001 00100010 00110011 01000100 01010101 0110011010101010 10111011 11001100 11011101 11101110 1111111110001110 11111010 10111110 0010111011000000 10101000 00000001 0000101011111011 0110100011000011 1000011000101000000100
+
+--------------------------
+ TRANSMISSION
+----------------------------
+  Total Frames Sent  : 10
+  Complete Message   : Hello Abi
+
+  Source Port        : 64360          | Destination Port    : 50054
+  Source IP          : 142.250.190.46  | Destination IP      : 192.168.1.10
+  Source MAC         : 11:22:33:44:55:66  | Destination MAC     : AA:BB:CC:DD:EE:FF
+[24bcs128@mepcolinux ex2]$cat output.txt
+----------------------------------------
+ COMPLETE BINARY FRAME STREAM OUTPUT
+------------------------------------------
+
+Frame 1 Stream: 00010001 00100010 00110011 01000100 01010101 01100110 10101010 10111011 11001100 11011101 11101110 11111111 10001110 11111010 10111110 00101110 11000000 10101000 00000001 00001010 11111011 01101000 11000011 10000110 0100100001 0110
+Frame 2 Stream: 00010001 00100010 00110011 01000100 01010101 01100110 10101010 10111011 11001100 11011101 11101110 11111111 10001110 11111010 10111110 00101110 11000000 10101000 00000001 00001010 11111011 01101000 11000011 10000110 1001010000 1111
+Frame 3 Stream: 00010001 00100010 00110011 01000100 01010101 01100110 10101010 10111011 11001100 11011101 11101110 11111111 10001110 11111010 10111110 00101110 11000000 10101000 00000001 00001010 11111011 01101000 11000011 10000110 0110110001 1101
+Frame 4 Stream: 00010001 00100010 00110011 01000100 01010101 01100110 10101010 10111011 11001100 11011101 11101110 11111111 10001110 11111010 10111110 00101110 11000000 10101000 00000001 00001010 11111011 01101000 11000011 10000110 1011000000 0100
+Frame 5 Stream: 00010001 00100010 00110011 01000100 01010101 01100110 10101010 10111011 11001100 11011101 11101110 11111111 10001110 11111010 10111110 00101110 11000000 10101000 00000001 00001010 11111011 01101000 11000011 10000110 0110111100 1001
+Frame 6 Stream: 00010001 00100010 00110011 01000100 01010101 01100110 10101010 10111011 11001100 11011101 11101110 11111111 10001110 11111010 10111110 00101110 11000000 10101000 00000001 00001010 11111011 01101000 11000011 10000110 1000000000 1101
+Frame 7 Stream: 00010001 00100010 00110011 01000100 01010101 01100110 10101010 10111011 11001100 11011101 11101110 11111111 10001110 11111010 10111110 00101110 11000000 10101000 00000001 00001010 11111011 01101000 11000011 10000110 0100000101 0000
+Frame 8 Stream: 00010001 00100010 00110011 01000100 01010101 01100110 10101010 10111011 11001100 11011101 11101110 11111111 10001110 11111010 10111110 00101110 11000000 10101000 00000001 00001010 11111011 01101000 11000011 10000110 1000100000 0111
+Frame 9 Stream: 00010001 00100010 00110011 01000100 01010101 01100110 10101010 10111011 11001100 11011101 11101110 11111111 10001110 11111010 10111110 00101110 11000000 10101000 00000001 00001010 11111011 01101000 11000011 10000110 0110100100 0111
+Frame 10 Stream: 00010001 00100010 00110011 01000100 01010101 01100110 10101010 10111011 11001100 11011101 11101110 11111111 10001110 11111010 10111110 00101110 11000000 10101000 00000001 00001010 11111011 01101000 11000011 10000110 0010100000 0100
+[24bcs128@mepcolinux ex2]$cat p2.c
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <ctype.h>
+#define MAX_BITS 30000
+#define MAX_FRAMES 500
+#define MAX_STR 256
+
+static char frameStreams[MAX_FRAMES][MAX_BITS];
+static int payloadStartIdx[MAX_FRAMES];
+static int payloadLenArr[MAX_FRAMES];
+static int crcStartIdx[MAX_FRAMES];
+static int crcLenArr[MAX_FRAMES];
+static char linebuf[MAX_BITS];
+static char workData[MAX_BITS];
+static void trim(char *s) {
+    int i = 0, j = (int)strlen(s) - 1;
+    while (i <= j && isspace((unsigned char)s[i])) i++;
+    while (j >= i && isspace((unsigned char)s[j])) j--;
+    if (i == 0 && j == (int)strlen(s) - 1) return;
+    int dst = 0;
+    int k;
+    for (k = i; k <= j; k++) s[dst++] = s[k];
+    s[dst] = '\0';
+}
+static void remove_spaces_inplace(char *s) {
+    int r = 0, w = 0;
+    while (s[r]) {
+        if (s[r] != ' ' && s[r] != '\t') s[w++] = s[r];
+        r++;
+    }
+    s[w] = '\0';
+}
+void computeCRC(const char *inputBits, const char *generator, char *remainder) {
+    int genLen = (int)strlen(generator);
+    int inputLen = (int)strlen(inputBits);
+    if (genLen < 2 || inputLen < genLen - 1) {
+        remainder[0] = '\0';
+        return;
+    }
+    if (inputLen >= MAX_BITS - 1) {
+        remainder[0] = '\0';
+        return;
+    }
+    strcpy(workData, inputBits);
+    int i, j;
+    for (i = 0; i <= inputLen - genLen; i++) {
+        if (workData[i] == '1') {
+            for (j = 0; j < genLen; j++) {
+                workData[i + j] = (workData[i + j] == generator[j]) ? '0' : '1';
+            }
+        }
+    }
+    if (genLen - 1 > 0) {
+        strncpy(remainder, workData + (inputLen - genLen + 1), genLen - 1);
+        remainder[genLen - 1] = '\0';
+    } else {
+        remainder[0] = '\0';
+    }
+}
+static int extract_generator_from_line(const char *ln, char *outGen, int outSize) {
+    const char *p = strstr(ln, "Generator");
+    if (!p) p = strstr(ln, "generator");
+    if (!p) return 0;
+    p = strchr(ln, '=');
+    if (!p) return 0;
+    p++;
+    while (*p && isspace((unsigned char)*p)) p++;
+    int idx = 0;
+    while (*p && (*p == '0' || *p == '1') && idx < outSize - 1) {
+        outGen[idx++] = *p++;
+    }
+    outGen[idx] = '\0';
+    return (idx > 0);
+}
+static int parse_frame_stream_line(const char *ln, char *outFullStream, int fullSize,
+                                   int *outPayloadStart, int *outPayloadLen,
+                                   int *outCrcStart, int *outCrcLen) {
+    char tmp[MAX_BITS];
+    char *tokens[256];
+    int tcount = 0;
+    char *tok;
+    strncpy(tmp, ln, sizeof(tmp) - 1);
+    tmp[sizeof(tmp) - 1] = '\0';
+    tok = strtok(tmp, " \t\r\n");
+    while (tok != NULL && tcount < (int)(sizeof(tokens)/sizeof(tokens[0]))) {
+        tokens[tcount++] = tok;
+        tok = strtok(NULL, " \t\r\n");
+    }
+    if (tcount >= 5) {
+        int startIdx = 3; /* token index where bit tokens start */
+        int i;
+        outFullStream[0] = '\0';
+        for (i = startIdx; i < tcount; i++) {
+            char tokenCopy[MAX_STR];
+            strncpy(tokenCopy, tokens[i], sizeof(tokenCopy) - 1);
+            tokenCopy[sizeof(tokenCopy) - 1] = '\0';
+            remove_spaces_inplace(tokenCopy);
+            strncat(outFullStream, tokenCopy, fullSize - strlen(outFullStream) - 1);
+        }
+        char payloadCopy[MAX_BITS], crcCopy[MAX_STR];
+        strncpy(payloadCopy, tokens[tcount - 2], sizeof(payloadCopy) - 1);
+        payloadCopy[sizeof(payloadCopy) - 1] = '\0';
+        strncpy(crcCopy, tokens[tcount - 1], sizeof(crcCopy) - 1);
+        crcCopy[sizeof(crcCopy) - 1] = '\0';
+        remove_spaces_inplace(payloadCopy);
+        remove_spaces_inplace(crcCopy);
+        int pos = 0;
+        for (i = startIdx; i < tcount - 2; i++) {
+            char tokenCopy[MAX_STR];
+            strncpy(tokenCopy, tokens[i], sizeof(tokenCopy)-1);
+            tokenCopy[sizeof(tokenCopy)-1] = '\0';
+            remove_spaces_inplace(tokenCopy);
+            pos += (int)strlen(tokenCopy);
+        }
+        *outPayloadStart = pos;
+        *outPayloadLen = (int)strlen(payloadCopy);
+        *outCrcStart = pos + *outPayloadLen;
+        *outCrcLen = (int)strlen(crcCopy);
+        return 1;
+    }
+    return 0;
+}
+int main(void) {
+    FILE *inFile = fopen("output.txt", "r");
+    if (!inFile) {
+        printf("Could not open file\n");
+        return 1;
+    }
+    char generator[MAX_STR] = "";
+    int expectedFrames = 0;
+    while (fgets(linebuf, sizeof(linebuf), inFile)) {
+        if (generator[0] == '\0') {
+            extract_generator_from_line(linebuf, generator, sizeof(generator));
+        }
+        if (expectedFrames == 0) {
+            const char *pNum = strstr(linebuf, "frames =");
+            if (!pNum) pNum = strstr(linebuf, "Frames =");
+            if (!pNum) pNum = strstr(linebuf, "frames=");
+            if (!pNum) pNum = strstr(linebuf, "Frames=");
+            if (pNum) {
+                const char *eq = strchr(pNum, '=');
+                if (eq) {
+                    eq++;
+                    while (*eq && isspace((unsigned char)*eq)) eq++;
+                    int val = 0;
+                    while (*eq >= '0' && *eq <= '9') {
+                        val = val * 10 + (*eq - '0');
+                        eq++;
+                    }
+                    expectedFrames = val;
+                }
+            }
+        }
+    }
+    if (generator[0] == '\0') {
+        printf("Generator not found in output.txt.\n");
+        printf("Enter generator binary string: ");
+        if (fgets(generator, sizeof(generator), stdin) == NULL) {
+            fclose(inFile);
+            return 1;
+        }
+        char *pnl = strchr(generator, '\n');
+        if (pnl) *pnl = '\0';
+        remove_spaces_inplace(generator);
+    }
+    rewind(inFile);
+    int totalFramesRead = 0;
+    while (fgets(linebuf, sizeof(linebuf), inFile) && totalFramesRead<MAX_FRAMES)
+    {
+       char *p;
+        p = strstr(linebuf, "||");
+        if (p) {
+            p += 2;
+            while (*p && isspace((unsigned char)*p)) p++;
+            trim(p);
+            remove_spaces_inplace(p);
+            if (strlen(p) > 0) {
+                strncpy(frameStreams[totalFramesRead], p, MAX_BITS - 1);
+                frameStreams[totalFramesRead][MAX_BITS - 1] = '\0';
+                int genDegree = (int)strlen(generator) - 1;
+                int fullLen = (int)strlen(frameStreams[totalFramesRead]);
+                if (genDegree > 0 && fullLen > genDegree) {
+                    payloadStartIdx[totalFramesRead] = 0;
+                    payloadLenArr[totalFramesRead] = fullLen - genDegree;
+                    crcStartIdx[totalFramesRead] = fullLen - genDegree;
+                    crcLenArr[totalFramesRead] = genDegree;
+                } else {
+                    payloadStartIdx[totalFramesRead] = 0;
+                    payloadLenArr[totalFramesRead] = fullLen;
+                    crcStartIdx[totalFramesRead] = fullLen;
+                    crcLenArr[totalFramesRead] = 0;
+                }
+                totalFramesRead++;
+            }
+            continue;
+        }
+        if (strstr(linebuf, "Frame") && strstr(linebuf, "Stream")) {
+            char fullStream[MAX_BITS];
+            int pstart, plen, cstart, clen;
+            if (parse_frame_stream_line(linebuf, fullStream, sizeof(fullStream), &pstart, &plen, &cstart, &clen)) {
+                strncpy(frameStreams[totalFramesRead], fullStream, MAX_BITS - 1);
+                frameStreams[totalFramesRead][MAX_BITS - 1] = '\0';
+                payloadStartIdx[totalFramesRead] = pstart;
+                payloadLenArr[totalFramesRead] = plen;
+                crcStartIdx[totalFramesRead] = cstart;
+                crcLenArr[totalFramesRead] = clen;
+                totalFramesRead++;
+            }
+            continue;
+        }
+        {
+            int cnt01 = 0, cntOther = 0, k;
+            for (k = 0; linebuf[k] && linebuf[k] != '\n' && k < (int)sizeof(linebuf); k++) {
+                if (linebuf[k] == '0' || linebuf[k] == '1' || isspace((unsigned char)linebuf[k])) cnt01++;
+                else cntOther++;
+            }
+            if (cnt01 > 10 && cntOther == 0) {
+                char tmp[MAX_BITS];
+                strncpy(tmp, linebuf, sizeof(tmp)-1);
+                tmp[sizeof(tmp)-1] = '\0';
+                trim(tmp);
+                remove_spaces_inplace(tmp);
+                if (strlen(tmp) > 0) {
+                    strncpy(frameStreams[totalFramesRead], tmp, MAX_BITS - 1);
+                    frameStreams[totalFramesRead][MAX_BITS - 1] = '\0';
+                    int genDegree = (int)strlen(generator) - 1;
+                    int fullLen = (int)strlen(frameStreams[totalFramesRead]);
+                    if (genDegree > 0 && fullLen > genDegree) {
+                        payloadStartIdx[totalFramesRead] = 0;
+                        payloadLenArr[totalFramesRead] = fullLen - genDegree;
+                        crcStartIdx[totalFramesRead] = fullLen - genDegree;
+                        crcLenArr[totalFramesRead] = genDegree;
+                    } else {
+                        payloadStartIdx[totalFramesRead] = 0;
+                        payloadLenArr[totalFramesRead] = fullLen;
+                        crcStartIdx[totalFramesRead] = fullLen;
+                        crcLenArr[totalFramesRead] = 0;
+                    }
+                    totalFramesRead++;
+                }
+            }
+        }
+    }
+    fclose(inFile);
+    if (totalFramesRead == 0) {
+        printf("No frames found in file.\n");
+        return 1;
+    }
+    printf("Found %d frames. Generator = %s (degree = %d)\n", totalFramesRead, generator, (int)strlen(generator) - 1);
+    printf("Do you want to simulate a transmission error? (y/n): ");
+    char simChoice = 'n';
+    if (scanf(" %c", &simChoice) != 1) simChoice = 'n';
+    if (simChoice == 'y' || simChoice == 'Y') {
+        int targetFrame = 0;
+        int bitPos = 0;
+        while (1) {
+            printf("Enter frame number to modify (Range: 1 to %d): ", totalFramesRead);
+            if (scanf("%d", &targetFrame) != 1) {
+                int ch;
+                while ((ch = getchar()) != '\n' && ch != EOF) {}
+                continue;
+            }
+            if (targetFrame >= 1 && targetFrame <= totalFramesRead) break;
+            printf(" Invalid frame! Please choose a number between 1 and %d.\n", totalFramesRead);
+        }
+        {
+            int frameIdx = targetFrame - 1;
+            int frameLen = (int)strlen(frameStreams[frameIdx]);
+            int pstart = payloadStartIdx[frameIdx];
+            int plen = payloadLenArr[frameIdx];
+            int cstart = crcStartIdx[frameIdx];
+            int clen = crcLenArr[frameIdx];
+            int dataStartBit = pstart + 1; /* 1-based */
+            int dataEndBit = (cstart > pstart ? cstart : (pstart + plen)) ; /* exclusive of CRC start */
+            if (dataEndBit == 0) dataEndBit = frameLen;
+            printf("\nFrame #%d Layout Breakdown:\n", targetFrame);
+            printf("Total Bits  : %d\n", frameLen);
+            printf("Data Range  : Bits %d to %d\n", dataStartBit, dataEndBit);
+            printf("CRC Range   : Bits %d to %d\n", cstart + 1, (cstart + clen));
+            while (1) {
+                printf("Enter bit position to flip (Range: %d to %d): ", dataStartBit, dataEndBit);
+                if (scanf("%d", &bitPos) != 1) {
+                    int ch;
+                    while ((ch = getchar()) != '\n' && ch != EOF) {}
+                    continue;
+                }
+                if (bitPos >= dataStartBit && bitPos <= dataEndBit) break;
+                printf(" Invalid bit position! Choose a position between %d and %d.\n", dataStartBit, dataEndBit);
+            }
+            int bitIdx = bitPos - 1;
+            if (bitIdx >= 0 && bitIdx < frameLen) {
+                if (frameStreams[frameIdx][bitIdx] == '0') frameStreams[frameIdx][bitIdx] = '1';
+                else if (frameStreams[frameIdx][bitIdx] == '1') frameStreams[frameIdx][bitIdx] = '0';
+                else {
+                    printf("Selected position is not a 0/1 bit; no flip performed.\n");
+                }
+                printf("\n *** Transmission Error Simulated** *\n");
+                printf("Frame %d : Bit %d flipped.\n", targetFrame, bitPos);
+            } else {
+                printf("Bit index out of range for this frame.\n");
+            }
+        }
+    }
+    printf("\nVerifying frames:\n");
+    {
+        int i, d;
+        int genDegree = (int)strlen(generator) - 1;
+        char remainder[MAX_STR];
+        for (i = 0; i < totalFramesRead; i++) {
+            int pstart = payloadStartIdx[i];
+            int plen = payloadLenArr[i];
+            int cstart = crcStartIdx[i];
+            int clen = crcLenArr[i];
+            char combined[MAX_BITS];
+            if (plen > 0 && clen > 0 && pstart >= 0 && cstart >= pstart) {
+                /* extract payload and crc from the stored full stream */
+                if (pstart + plen + clen >= MAX_BITS) {
+                    printf("Frame %02d : Error - sizes exceed buffer\n", i + 1);
+                    continue;
+                }
+                combined[0] = '\0';
+                strncat(combined, frameStreams[i] + pstart, plen);
+                strncat(combined, frameStreams[i] + cstart, clen);
+            } else {
+                /* fallback: treat whole stored stream as combined payload+crc */
+                strncpy(combined, frameStreams[i], sizeof(combined) - 1);
+                combined[sizeof(combined) - 1] = '\0';
+            }
+            computeCRC(combined, generator, remainder);
+            int errorDetected = 0;
+            for (d = 0; d < genDegree; d++) {
+                if (remainder[d] != '0') { errorDetected = 1; break; }
+            }
+            printf("Frame %02d : %s  (remainder = %s)\n", i + 1, errorDetected ? "FAIL" : "PASS", remainder);
+        }
+    }
+
+    return 0;
+}
+[24bcs128@mepcolinux ex2]$cc p2.c
+[24bcs128@mepcolinux ex2]$./a.out
+Generator not found in output.txt.
+Enter generator binary string: 10011
+Found 10 frames. Generator = 10011 (degree = 4)
+Do you want to simulate a transmission error? (y/n): y
+Enter frame number to modify (Range: 1 to 10): 2
+Frame #2 Layout Breakdown:
+Total Bits  : 206
+Data Range  : Bits 193 to 202
+CRC Range   : Bits 203 to 206
+Enter bit position to flip (Range: 193 to 202): 194
+Frame 2 : Bit 194 flipped.
+
+Verifying frames:
+Frame 01 : PASS  (remainder = 0000)
+Frame 02 : FAIL  (remainder = 1111)
+Frame 03 : PASS  (remainder = 0000)
+Frame 04 : PASS  (remainder = 0000)
+Frame 05 : PASS  (remainder = 0000)
+Frame 06 : PASS  (remainder = 0000)
+Frame 07 : PASS  (remainder = 0000)
+Frame 08 : PASS  (remainder = 0000)
+Frame 09 : PASS  (remainder = 0000)
+Frame 10 : PASS  (remainder = 0000)
+[24bcs128@mepcolinux ex2]$./a.out
+Generator not found in output.txt.
+Enter generator binary string: 10011
+Found 10 frames. Generator = 10011 (degree = 4)
+Do you want to simulate a transmission error? (y/n): n
+
+Verifying frames:
+Frame 01 : PASS  (remainder = 0000)
+Frame 02 : PASS  (remainder = 0000)
+Frame 03 : PASS  (remainder = 0000)
+Frame 04 : PASS  (remainder = 0000)
+Frame 05 : PASS  (remainder = 0000)
+Frame 06 : PASS  (remainder = 0000)
+Frame 07 : PASS  (remainder = 0000)
+Frame 08 : PASS  (remainder = 0000)
+Frame 09 : PASS  (remainder = 0000)
+Frame 10 : PASS  (remainder = 0000)
+[24bcs128@mepcolinux ex2]$cat odds.c
+#include <stdio.h>
+#include <string.h>
+#define MAX_MESSAGE 100
+char binaryBlock[9];
+void convertToBinary(char character)
+{
+    int bit;
+    int index = 0;
+    for (bit = 6; bit >= 0; bit--)
+    {
+        binaryBlock[index++] = ((character >> bit) & 1) + '0';
+    }
+    binaryBlock[7] = '\0';
+}
+void generateOddParity()
+{
+    int i;
+    int oneCount = 0;
+    for (i = 0; i < 7; i++)
+    {
+        if (binaryBlock[i] == '1')
+        {
+            oneCount++;
+        }
+    }
+    if (oneCount % 2 == 0)
+        binaryBlock[7] = '1';
+    else
+        binaryBlock[7] = '0';
+    binaryBlock[8] = '\0';
+}
+void sender()
+{
+    char message[MAX_MESSAGE];
+    FILE *outputFile;
+    int messageLength;
+    int i;
+    printf("Enter Message: ");
+    scanf("%s", message);
+    outputFile = fopen("out.txt", "w");
+    if (outputFile == NULL)
+    {
+        printf("Error creating channel.txt\n");
+        return;
+    }
+    messageLength = strlen(message);
+    fprintf(outputFile, "%d\n", messageLength);
+    for (i = 0; i < messageLength; i++)
+    {
+        convertToBinary(message[i]);
+        generateOddParity();
+        printf("Character %c : %s\n", message[i], binaryBlock);
+        fprintf(outputFile, "%s\n", binaryBlock);
+    }
+    fclose(outputFile);
+}
+int main()
+{
+    sender();
+    return 0;
+}
+[24bcs128@mepcolinux ex2]$cc odds.c
+[24bcs128@mepcolinux ex2]$./a.out
+Enter Message: Abi
+Character A : 10000011
+Character b : 11000100
+Character i : 11010011
+[24bcs128@mepcolinux ex2]$cat out.txt
+3
+10000011
+11000100
+11010011
+[24bcs128@mepcolinux ex2]$cat oddr.c
+#include <stdio.h>
+#include <string.h>
+#define MAX_SIZE 100
+char receivedData[9];
+void receiver()
+{
+    FILE *receiverFile;
+    int totalCharacters;
+    int character;
+    char choice;
+    int flipCount;
+    int i;
+    int position;
+    int oneCount;
+    int bit;
+    receiverFile = fopen("out.txt", "r");
+    if (receiverFile == NULL)
+    {
+        printf("Error: channel.txt not found.\n");
+        printf("Run the sender program first.\n");
+        return;
+    }
+    fscanf(receiverFile, "%d", &totalCharacters);
+    for (character = 0; character < totalCharacters; character++)
+    {
+        fscanf(receiverFile, "%8s", receivedData);
+        printf("\nReceived Block %d : %s\n",
+               character + 1, receivedData);
+        printf("Do you want to simulate transmission error? (y/n): ");
+        scanf(" %c", &choice);
+        if (choice == 'y' || choice == 'Y')
+        {
+            printf("Enter number of bits to flip: ");
+            scanf("%d", &flipCount);
+            for (i = 1; i <= flipCount; i++)
+            {
+                while (1)
+                {
+                    printf("Enter bit position %d (1-8): ", i);
+                    scanf("%d", &position);
+                    if (position >= 1 && position <= 8)
+                        break;
+                    printf("Invalid position! Enter between 1 and 8.\n");
+                }
+                if(receivedData[position - 1] == '0')
+                    receivedData[position - 1] = '1';
+                else
+                    receivedData[position - 1] = '0';
+            }
+            printf("\nModified Block : %s\n", receivedData);
+        }
+        oneCount = 0;
+        for (bit = 0; bit < 8; bit++)
+        {
+            if (receivedData[bit] == '1')
+            {
+                oneCount++;
+            }
+        }
+        printf("Number of 1's : %d\n", oneCount);
+        if (oneCount % 2 != 0)
+        {
+            printf("Result : ACCEPTED\n");
+            printf("Status : No Error Detected\n");
+        }
+        else
+        {
+            printf("Result : REJECTED\n");
+            printf("Status : Error Detected\n");
+        }
+    }
+    fclose(receiverFile);
+}
+int main()
+{
+   receiver();
+   return 0;
+}
+[24bcs128@mepcolinux ex2]$cc oddr.c
+[24bcs128@mepcolinux ex2]$./a.out
+
+Received Block 1 : 10000011
+Do you want to simulate transmission error? (y/n): y
+Enter number of bits to flip: 1
+Enter bit position 1 (1-8): 3
+Modified Block : 10100011
+Number of 1's : 4
+Result : REJECTED
+Status : Error Detected
+Received Block 2 : 11000100
+Do you want to simulate transmission error? (y/n): y
+Enter number of bits to flip: 2
+Enter bit position 1 (1-8): 3
+Enter bit position 2 (1-8): 5
+Modified Block : 11101100
+Number of 1's : 5
+Result : ACCEPTED
+Status : No Error Detected
+Received Block 3 : 11010011
+Do you want to simulate transmission error? (y/n): y
+Enter number of bits to flip: 3
+Enter bit position 1 (1-8): 1
+Enter bit position 2 (1-8): 5
+Enter bit position 3 (1-8): 3
+Modified Block : 01111011
+Number of 1's : 6
+Result : REJECTED
+Status : Error Detected
+[24bcs128@mepcolinux ex2]$./a.out
+Received Block 1 : 10000011
+Do you want to simulate transmission error? (y/n): n
+Number of 1's : 3
+Result : ACCEPTED
+Status : No Error Detected
+Received Block 2 : 11000100
+Do you want to simulate transmission error? (y/n): n
+Number of 1's : 3
+Result : ACCEPTED
+Status : No Error Detected
+Received Block 3 : 11010011
+Do you want to simulate transmission error? (y/n): y
+Enter number of bits to flip: 1
+Enter bit position 1 (1-8): 5
+Modified Block : 11011011
+Number of 1's : 6
+Result : REJECTED
+Status : Error Detected
+[24bcs128@mepcolinux ex2]$exit
+exit
+
+Script done on Fri Jul 31 14:51:59 2026
+[24bcs128@mepcolinux ex2]$cd ..
+[24bcs128@mepcolinux nw]$cd ex1
+[24bcs128@mepcolinux ex1]$cat ex1.prn
+Script started on Fri Jul 24 15:04:25 2026
+[24bcs128@mepcolinux ex1]$cat exe1.c
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <time.h>
+struct NetworkTable
+{
+    char url[30];
+    int ip[4];
+    char mac[20];
+};
+struct NetworkTable table[20];
+int entryCount = 0;
+char stuffedMessage[1000];
+int Binary(int num, char *str)
+{
+    int i;
+    for(i=0;i<8;i++)
+        str[i]='0';
+    str[8]='\0';
+    for(i=7;i>=0;i--)
+    {
+        if(num%2)
+            str[i]='1';
+        num/=2;
+    }
+    return 1;
+}
+int portToBinary(int port,char *str)
+{
+    char high[9],low[9];
+    int index=0,i;
+    Binary(port/256,high);
+    Binary(port%256,low);
+    for(i=0;i<8;i++)
+        str[index++]=high[i];
+    str[index++]=' ';
+    for(i=0;i<8;i++)
+        str[index++]=low[i];
+    str[index]='\0';
+    return 1;
+}
+int macToBinary(const char *mac,char *str)
+{
+    int len=strlen(mac);
+    int index=0,count=0;
+    int i,j;
+    for(i=0;i<len;i++)
+    {
+        int value,temp;
+        if(mac[i]==':')
+            continue;
+        if(mac[i]>='0' && mac[i]<='9')
+            value=mac[i]-'0';
+        else if(mac[i]>='A' && mac[i]<='F')
+            value=mac[i]-'A'+10;
+        else
+            value=mac[i]-'a'+10;
+        temp=value;
+        for(j=3;j>=0;j--)
+        {
+            if(temp%2)
+                str[index+j]='1';
+            else
+                str[index+j]='0';
+            temp/=2;
+        }
+        index+=4;
+        count++;
+        if(count%2==0 && i<len-1)
+            str[index++]=' ';
+    }
+    str[index]='\0';
+    return 1;
+}
+void performCharacterStuffing(const char *message)
+{
+    int i=0,j=0;
+    while(message[i]!='\0')
+    {
+        if(strncmp(&message[i],"DLE",3)==0)
+        {
+            strcpy(&stuffedMessage[j],"DLE DLE");
+            j+=7;
+            i+=3;
+        }
+        else if(strncmp(&message[i],"ETX",3)==0)
+        {
+            strcpy(&stuffedMessage[j],"DLE ETX");
+            j+=7;
+            i+=3;
+        }
+        else if(strncmp(&message[i],"STX",3)==0)
+        {
+            strcpy(&stuffedMessage[j],"DLE STX");
+            j+=7;
+            i+=3;
+        }
+        else
+        {
+            stuffedMessage[j++]=message[i++];
+        }
+    }
+    stuffedMessage[j]='\0';
+}
+void BISYNCProtocol(int sIdx, int dIdx, int srcPort)
+{
+    FILE *fp;
+    int i;
+    char srcMacBin[100], destMacBin[100];
+    char srcPortBin[30], destPortBin[30];
+    char srcIP[50] = "", destIP[50] = "", temp[9];
+    char binary[9];
+    fp = fopen("output.txt", "w");
+    if(fp == NULL)
+    {
+        printf("\nUnable to create file.\n");
+        return;
+    }
+    macToBinary(table[sIdx].mac, srcMacBin);
+    macToBinary(table[dIdx].mac, destMacBin);
+    portToBinary(srcPort, srcPortBin);
+    portToBinary(50054, destPortBin);
+    for(i=0;i<4;i++)
+    {
+        Binary(table[sIdx].ip[i], temp);
+        strcat(srcIP, temp);
+        if(i<3)
+            strcat(srcIP, " ");
+    }
+    for(i=0;i<4;i++)
+    {
+        Binary(table[dIdx].ip[i], temp);
+        strcat(destIP, temp);
+        if(i<3)
+            strcat(destIP, " ");
+    }
+    fprintf(fp,"00010110");
+    fprintf(fp,"00010110");
+    fprintf(fp,"00000001");
+    fprintf(fp,"%s",srcMacBin);
+    fprintf(fp,"%s",destMacBin);
+    fprintf(fp,"%s",srcIP);
+    fprintf(fp,"%s",destIP);
+    fprintf(fp,"%s", srcPortBin);
+    fprintf(fp,"%s", destPortBin);
+    fprintf(fp,"00000010");
+    for(i=0; stuffedMessage[i]!='\0'; i++)
+    {
+        Binary((unsigned char)stuffedMessage[i], binary);
+        fprintf(fp,"%s ", binary);
+    }
+    fprintf(fp,"00000011");
+    fprintf(fp,"00000000");
+    fclose(fp);
+}
+void displayTable()
+{
+    int i;
+    printf("\n------------------------------------------------------------\n");
+    printf("%-20s %-18s %-20s\n",
+           "URL","IP Address","MAC Address");
+    printf("------------------------------------------------------------\n");
+    for(i=0;i<entryCount;i++)
+    {
+        printf("%-20s %3d.%-3d.%-3d.%-3d %-20s\n",
+               table[i].url,
+               table[i].ip[0],
+               table[i].ip[1],
+               table[i].ip[2],
+               table[i].ip[3],
+               table[i].mac);
+    }
+    printf("------------------------------------------------------------\n");
+}
+int printApplicationLayer(const char *buffer,int totalLen)
+{
+    int i;
+    printf("\n----------------------------------------\n");
+    printf(" LAYER 1 : APPLICATION LAYER\n");
+    printf("----------------------------------------\n");
+    printf("Message : %s\n",buffer);
+    printf("\nBinary Message\n");
+    for(i=0;i<totalLen;i++)
+    {
+        char binary[9];
+        Binary((unsigned char)buffer[i],binary);
+        printf("%s ",binary);
+    }
+    printf("\n");
+    return 1;
+}
+int printTransportLayer(int srcPort,const char *buffer,int totalLen)
+{
+    int i;
+    char srcPortBin[30];
+    char destPortBin[30];
+    portToBinary(srcPort,srcPortBin);
+    portToBinary(50054,destPortBin);
+    printf("\n----------------------------------------\n");
+    printf(" LAYER 2 : TRANSPORT LAYER\n");
+    printf("----------------------------------------\n");
+    printf("Source Port      : %d\n",srcPort);
+    printf("Destination Port : 50054\n");
+    printf("\nBinary Format\n");
+    printf("Source Port      : %s\n",srcPortBin);
+    printf("Destination Port : %s\n",destPortBin);
+    printf("\nSegment Output\n");
+    printf("%s %s ",srcPortBin,destPortBin);
+    for(i=0;i<totalLen;i++)
+    {
+        char binary[9];
+        Binary((unsigned char)buffer[i],binary);
+        printf("%s ",binary);
+    }
+    printf("\n");
+    return 1;
+}
+int printNetworkLayer(int sIdx,int dIdx,const char *buffer,int totalLen,int packetBitSize,int srcPort)
+{
+    int i, k;
+    int packetNo = 1;
+    int bytesPerPacket = packetBitSize / 8;
+    char srcIP[50] = "";
+    char destIP[50] = "";
+    char srcPortBin[30];
+    char destPortBin[30];
+    char temp[9];
+    char binary[9];
+    if(bytesPerPacket <= 0)
+        bytesPerPacket = 1;
+    for(i=0;i<4;i++)
+    {
+        Binary(table[sIdx].ip[i],temp);
+        strcat(srcIP,temp);
+        if(i<3)
+            strcat(srcIP," ");
+    }
+    for(i=0;i<4;i++)
+    {
+        Binary(table[dIdx].ip[i],temp);
+        strcat(destIP,temp);
+        if(i<3)
+            strcat(destIP," ");
+    }
+    portToBinary(srcPort,srcPortBin);
+    portToBinary(50054,destPortBin);
+    printf("\n--------------------------------\n");
+    printf(" LAYER 3 : NETWORK LAYER\n");
+    printf("----------------------------------\n");
+    printf("Packet Size : %d Bits\n",packetBitSize);
+    for(i=0;i<totalLen;i+=bytesPerPacket)
+    {
+        int currentLength = bytesPerPacket;
+        if(i+currentLength>totalLen)
+            currentLength=totalLen-i;
+        printf("\n----------------------------------------\n");
+        printf("PACKET %d\n",packetNo++);
+        printf("----------------------------------------\n");
+        printf("Source IP        : %d.%d.%d.%d\n",table[sIdx].ip[0],table[sIdx].ip[1],table[sIdx].ip[2],table[sIdx].ip[3]);
+        printf("Destination IP   : %d.%d.%d.%d\n",table[dIdx].ip[0],table[dIdx].ip[1],table[dIdx].ip[2],table[dIdx].ip[3]);
+        printf("Source Port      : %d\n",srcPort);
+        printf("Destination Port : 50054\n");
+        printf("\nPacket Binary\n");
+        printf("%s ",srcIP);
+        printf("%s ",destIP);
+        printf("%s ",srcPortBin);
+        printf("%s ",destPortBin);
+        for(k=0;k<currentLength;k++)
+        {
+            Binary((unsigned char)buffer[i+k],binary);
+            printf("%s ",binary);
+        }
+        printf("\n");
+    }
+    return 1;
+}
+void printDataLinkLayer(int sIdx,int dIdx,int srcPort,const char *buffer)
+{
+    int i;
+    char srcMacBin[100];
+    char destMacBin[100];
+    char srcPortBin[30];
+    char destPortBin[30];
+    char srcIP[50]="";
+    char destIP[50]="";
+    char temp[9];
+    char binary[9];
+    performCharacterStuffing(buffer);
+    BISYNCProtocol(sIdx, dIdx, srcPort);
+    macToBinary(table[sIdx].mac,srcMacBin);
+    macToBinary(table[dIdx].mac,destMacBin);
+    portToBinary(srcPort,srcPortBin);
+    portToBinary(50054,destPortBin);
+    for(i=0;i<4;i++)
+    {
+        Binary(table[sIdx].ip[i],temp);
+        strcat(srcIP,temp);
+        if(i<3)
+            strcat(srcIP," ");
+    }
+    for(i=0;i<4;i++)
+    {
+        Binary(table[dIdx].ip[i],temp);
+        strcat(destIP,temp);
+        if(i<3)
+            strcat(destIP," ");
+    }
+    printf("\n--------------------------------------------\n");
+    printf("               LAYER 4 : DATA LINK LAYER\n");
+    printf("----------------------------------------------\n");
+    printf("\nStuffed Message : %s\n",stuffedMessage);
+    printf("\n--------------------------------------------\n");
+    printf("                 BISYNC PROTOCOL FORMAT\n");
+    printf("----------------------------------------------\n");
+    printf("\nSYN  : 00010110");
+    printf("\nSYN  : 00010110");
+    printf("\n\nSOH  : 00000001");
+    printf("\n\nHEADER\n");
+    printf("--------------------------------------\n");
+    printf("Source MAC       : %s\n",srcMacBin);
+    printf("Destination MAC  : %s\n",destMacBin);
+    printf("Source IP        : %s\n",srcIP);
+    printf("Destination IP   : %s\n",destIP);
+    printf("Source Port      : %s\n",srcPortBin);
+    printf("Destination Port : %s\n",destPortBin);
+    printf("\nSTX : 00000010\n");
+    printf("\nDATA\n");
+    printf("--------------------------------------\n");
+    for(i=0;stuffedMessage[i]!='\0';i++)
+    {
+        Binary((unsigned char)stuffedMessage[i],binary);
+        printf("%s ",binary);
+    }
+    printf("\n");
+    printf("\nETX : 00000011");
+    printf("\nCRC : 00000000");
+}
+void printPhysicalLayer()
+{
+    int i;
+    char binary[9];
+    printf("\n------------------------------\n");
+    printf(" LAYER 5 : PHYSICAL LAYER\n");
+    printf("--------------------------------\n");
+    printf("Transmitting Stuffed Data\n\n");
+    for(i=0;stuffedMessage[i]!='\0';i++)
+    {
+        Binary((unsigned char)stuffedMessage[i],binary);
+        printf("%s ",binary);
+    }
+    printf("\n");
+}
+void printTransmission(int sIdx,int dIdx,int srcPort)
+{
+    printf("Source URL      : %s\n",table[sIdx].url);
+    printf("Destination URL : %s\n",table[dIdx].url);
+    printf("Source Port     : %d\n",srcPort);
+    printf("Destination Port: 50054\n");
+    printf("Source IP       : %d.%d.%d.%d\n",table[sIdx].ip[0],table[sIdx].ip[1],table[sIdx].ip[2],table[sIdx].ip[3]);
+    printf("Destination IP  : %d.%d.%d.%d\n",table[dIdx].ip[0],table[dIdx].ip[1],table[dIdx].ip[2],table[dIdx].ip[3]);
+    printf("Source MAC      : %s\n",table[sIdx].mac);
+    printf("Destination MAC : %s\n",table[dIdx].mac);
+    printf("\nStuffed Message : %s\n",stuffedMessage);
+}
+void executeNetwork(int sIdx,
+                    int dIdx,
+                    const char *buffer,
+                    int totalLen,
+                    int srcPort,
+                    int packetBitSize)
+{
+    printApplicationLayer(buffer,totalLen);
+    printTransportLayer(srcPort,
+                        buffer,
+                        totalLen);
+    printNetworkLayer(sIdx,
+                      dIdx,
+                      buffer,
+                      totalLen,
+                      packetBitSize,
+                      srcPort);
+    strcpy(stuffedMessage,buffer);
+    printDataLinkLayer(sIdx,
+                       dIdx,
+                       srcPort,buffer);
+    printPhysicalLayer();
+    printTransmission(sIdx,
+                      dIdx,
+                      srcPort);
+}
+int main()
+{
+    int i, j;
+    int sIdx, dIdx;
+    int len;
+    int packetBitSize;
+    int randomSrcPort;
+    char src[30];
+    char dest[30];
+    char fileName[30];
+    char buffer[100];
+    FILE *fp;
+    srand((unsigned int)time(NULL));
+    strcpy(table[0].url, "client.lan");
+    table[0].ip[0] = 192;
+    table[0].ip[1] = 168;
+    table[0].ip[2] = 1;
+    table[0].ip[3] = 10;
+    strcpy(table[0].mac, "AA:BB:CC:DD:EE:FF");
+    strcpy(table[1].url, "google.com");
+    table[1].ip[0] = 142;
+    table[1].ip[1] = 250;
+    table[1].ip[2] = 190;
+    table[1].ip[3] = 46;
+    strcpy(table[1].mac, "11:22:33:44:55:66");
+    entryCount=2;
+            printf("\nSource URL : ");
+            scanf("%s", src);
+            printf("Destination URL : ");
+            scanf("%s", dest);
+            printf("Packet Size (Bits) : ");
+            scanf("%d",&packetBitSize);
+            printf("Enter File Name : ");
+            scanf("%s", fileName);
+            fp=fopen(fileName,"r");
+            if(fp==NULL)
+            {
+                printf("\nFile Not Found.\n");
+            }
+            fgets(buffer,sizeof(buffer),fp);
+            fclose(fp);
+            len=strlen(buffer);
+            if(len>0 && buffer[len-1]=='\n')
+            {
+                buffer[len-1]='\0';
+                len--;
+            }
+            sIdx=-1;
+            dIdx=-1;
+            for(i=0;i<entryCount;i++)
+            {
+                if(strcmp(src,table[i].url)==0)
+                    sIdx=i;
+                if(strcmp(dest,table[i].url)==0)
+                    dIdx=i;
+            }
+            if(sIdx==-1 || dIdx==-1)
+            {
+                printf("\nInvalid Source/Destination URL.\n");
+            }
+            randomSrcPort=(rand()%49152)+1024;
+            executeNetwork(
+                sIdx,
+                dIdx,
+                buffer,
+                len,
+                randomSrcPort,
+                packetBitSize
+            );
+            return 0;
+}
+[24bcs128@mepcolinux ex1]$cc exe1.c
+[24bcs128@mepcolinux ex1]$./a.out
+
+Source URL : client.lan
+Destination URL : google.com
+Packet Size (Bits) : 32
+Enter File Name : data.txt
+
+----------------------------------------
+ LAYER 1 : APPLICATION LAYER
+----------------------------------------
+Message : Hello DLE ETX STX World
+
+Binary Message
+01001000 01100101 01101100 01101100 01101111 00100000 01000100 01001100 01000101 00100000 01000101 01010100 01011000 00100000 01010011 01010100 01011000 00100000 01010111 01101111 01110010 01101100 01100100
+
+----------------------------------------
+ LAYER 2 : TRANSPORT LAYER
+----------------------------------------
+Source Port      : 42597
+Destination Port : 50054
+
+Binary Format
+Source Port      : 10100110 01100101
+Destination Port : 11000011 10000110
+
+Segment Output
+10100110 01100101 11000011 10000110 01001000 01100101 01101100 01101100 01101111 00100000 01000100 01001100 01000101 00100000 01000101 01010100 01011000 00100000 01010011 01010100 01011000 00100000 01010111 01101111 01110010 01101100 01100100
+
+--------------------------------
+ LAYER 3 : NETWORK LAYER
+----------------------------------
+Packet Size : 32 Bits
+
+----------------------------------------
+PACKET 1
+----------------------------------------
+Source IP        : 192.168.1.10
+Destination IP   : 142.250.190.46
+Source Port      : 42597
+Destination Port : 50054
+
+Packet Binary
+11000000 10101000 00000001 00001010 10001110 11111010 10111110 00101110 10100110 01100101 11000011 10000110 01001000 01100101 01101100 01101100
+
+----------------------------------------
+PACKET 2
+----------------------------------------
+Source IP        : 192.168.1.10
+Destination IP   : 142.250.190.46
+Source Port      : 42597
+Destination Port : 50054
+
+Packet Binary
+11000000 10101000 00000001 00001010 10001110 11111010 10111110 00101110 10100110 01100101 11000011 10000110 01101111 00100000 01000100 01001100
+
+----------------------------------------
+PACKET 3
+----------------------------------------
+Source IP        : 192.168.1.10
+Destination IP   : 142.250.190.46
+Source Port      : 42597
+Destination Port : 50054
+
+Packet Binary
+11000000 10101000 00000001 00001010 10001110 11111010 10111110 00101110 10100110 01100101 11000011 10000110 01000101 00100000 01000101 01010100
+
+----------------------------------------
+PACKET 4
+----------------------------------------
+Source IP        : 192.168.1.10
+Destination IP   : 142.250.190.46
+Source Port      : 42597
+Destination Port : 50054
+
+Packet Binary
+11000000 10101000 00000001 00001010 10001110 11111010 10111110 00101110 10100110 01100101 11000011 10000110 01011000 00100000 01010011 01010100
+
+----------------------------------------
+PACKET 5
+----------------------------------------
+Source IP        : 192.168.1.10
+Destination IP   : 142.250.190.46
+Source Port      : 42597
+Destination Port : 50054
+
+Packet Binary
+11000000 10101000 00000001 00001010 10001110 11111010 10111110 00101110 10100110 01100101 11000011 10000110 01011000 00100000 01010111 01101111
+
+----------------------------------------
+PACKET 6
+----------------------------------------
+Source IP        : 192.168.1.10
+Destination IP   : 142.250.190.46
+Source Port      : 42597
+Destination Port : 50054
+
+Packet Binary
+11000000 10101000 00000001 00001010 10001110 11111010 10111110 00101110 10100110 01100101 11000011 10000110 01110010 01101100 01100100
+
+--------------------------------------------
+               LAYER 4 : DATA LINK LAYER
+----------------------------------------------
+
+Stuffed Message : Hello DLE DLE DLE ETX DLE STX World
+
+--------------------------------------------
+                 BISYNC PROTOCOL FORMAT
+----------------------------------------------
+
+SYN  : 00010110
+SYN  : 00010110
+
+SOH  : 00000001
+
+HEADER
+--------------------------------------
+Source MAC       : 10101010 10111011 11001100 11011101 11101110 11111111
+Destination MAC  : 00010001 00100010 00110011 01000100 01010101 01100110
+Source IP        : 11000000 10101000 00000001 00001010
+Destination IP   : 10001110 11111010 10111110 00101110
+Source Port      : 10100110 01100101
+Destination Port : 11000011 10000110
+
+STX : 00000010
+
+DATA
+--------------------------------------
+01001000 01100101 01101100 01101100 01101111 00100000 01000100 01001100 01000101 00100000 01000100 01001100 01000101 00100000 01000100 01001100 01000101 00100000 01000101 01010100 01011000 00100000 01000100 01001100 01000101 00100000 01010011 01010100 01011000 00100000 01010111 01101111 01110010 01101100 01100100
+
+ETX : 00000011
+CRC : 00000000
+------------------------------
+ LAYER 5 : PHYSICAL LAYER
+--------------------------------
+Transmitting Stuffed Data
+
+01001000 01100101 01101100 01101100 01101111 00100000 01000100 01001100 01000101 00100000 01000100 01001100 01000101 00100000 01000100 01001100 01000101 00100000 01000101 01010100 01011000 00100000 01000100 01001100 01000101 00100000 01010011 01010100 01011000 00100000 01010111 01101111 01110010 01101100 01100100
+Source URL      : client.lan
+Destination URL : google.com
+Source Port     : 42597
+Destination Port: 50054
+Source IP       : 192.168.1.10
+Destination IP  : 142.250.190.46
+Source MAC      : AA:BB:CC:DD:EE:FF
+Destination MAC : 11:22:33:44:55:66
+
+Stuffed Message : Hello DLE DLE DLE ETX DLE STX World
+[24bcs128@mepcolinux ex1]$cat output.txt
+00010110 00010110 00000001 10101010 10111011 11001100 11011101 11101110 11111111 00010001 00100010 00110011 01000100 01010101 01100110 11000000 10101000 00000001 00001010 10001110 11111010 10111110 00101110 10100110 01100101 11000011 10000110 00000010 01001000 01100101 01101100 01101100 01101111 00100000 01000100 01001100 01000101 00100000 01000100 01001100 01000101 00100000 01000100 01001100 01000101 00100000 01000101 01010100 01011000 00100000 01000100 01001100 01000101 00100000 01010011 01010100 01011000 00100000 01010111 01101111 01110010 01101100 01100100 00000011 00000000
+[24bcs128@mepcolinux ex1]$cat ex2.c
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+char receivedPayload[1000];
+char destuffedMessage[1000];
+unsigned char binaryToByte(const char *binStr)
+{
+    unsigned char val = 0;
+    int i;
+    for(i = 0; i < 8; i++)
+    {
+        val <<= 1;
+        if(binStr[i] == '1')
+            val |= 1;
+    }
+    return val;
+}
+void performCharacterDestuffing(const char *stuffedStr)
+{
+    int i = 0, j = 0;
+    int len = strlen(stuffedStr);
+    while(i < len)
+    {
+        if(strncmp(&stuffedStr[i], "DLE DLE", 7) == 0)
+        {
+            strcpy(&destuffedMessage[j], "DLE");
+            j += 3;
+            i += 7;
+        }
+        else if(strncmp(&stuffedStr[i], "DLE ETX", 7) == 0)
+        {
+            strcpy(&destuffedMessage[j], "ETX");
+            j += 3;
+            i += 7;
+        }
+        else if(strncmp(&stuffedStr[i],"DLE STX",7)==0)
+        {
+           strcpy(&destuffedMessage[j], "STX");
+           j += 3;
+           i += 7;
+        }
+        else
+        {
+            destuffedMessage[j++] = stuffedStr[i++];
+        }
+    }
+    destuffedMessage[j] = '\0';
+}
+int main()
+{
+    FILE *fp;
+    char token[100];
+    int i;
+    char srcMacBin[100] = "";
+    char destMacBin[100] = "";
+    char srcIPBin[100] = "";
+    char destIPBin[100] = "";
+    char srcPortBin[50] = "";
+    char destPortBin[50] = "";
+    fp = fopen("output.txt", "r");
+    if(fp == NULL)
+    {
+        printf("\nFile not exist\n");
+        return 1;
+    }
+    fscanf(fp, "%8s", token); printf("SYN      : %s\n", token);
+    fscanf(fp, "%8s", token); printf("SYN      : %s\n", token);
+    fscanf(fp, "%8s", token); printf("SOH      : %s\n", token);
+    printf("\nHEADER\n");
+    for(i = 0; i < 6; i++)
+    {
+       fscanf(fp, "%8s", token);
+       strcat(srcMacBin, token);
+       if(i < 5)
+          strcat(srcMacBin, " ");
+    }
+    printf("Source MAC  : %s\n", srcMacBin);
+    for(i = 0; i < 6; i++)
+    {
+       fscanf(fp, "%8s", token);
+       strcat(destMacBin, token);
+       if(i < 5)
+          strcat(destMacBin, " ");
+    }
+    printf("Dest MAC     : %s\n", destMacBin);
+    for(i = 0; i < 4; i++)
+    {
+       fscanf(fp, "%8s", token);
+       strcat(srcIPBin, token);
+       if(i < 3)
+          strcat(srcIPBin, " ");
+    }
+    printf("Source IP    : %s\n", srcIPBin);
+    for(i = 0; i < 4; i++)
+    {
+       fscanf(fp, "%8s", token);
+       strcat(destIPBin, token);
+       if(i < 3)
+          strcat(destIPBin, " ");
+    }
+    printf("Dest IP      : %s\n", destIPBin);
+    fscanf(fp, "%8s", token);
+    strcpy(srcPortBin, token);
+    fscanf(fp, "%8s", token);
+    strcat(srcPortBin, " ");
+    strcat(srcPortBin, token);
+    printf("Source Port  : %s\n", srcPortBin);
+    fscanf(fp, "%8s", token);
+    strcpy(destPortBin, token);
+    fscanf(fp, "%8s", token);
+    strcat(destPortBin, " ");
+    strcat(destPortBin, token);
+    printf("Dest Port    : %s\n", destPortBin);
+    fscanf(fp, "%8s", token);
+    printf("\nSTX : %s\n", token);
+    int payloadIdx = 0;
+    while(fscanf(fp, "%8s", token) != EOF)
+    {
+        if(strcmp(token, "00000011") == 0)
+        {
+            break;
+        }
+             unsigned char characterByte = binaryToByte(token);
+        receivedPayload[payloadIdx++] = (char)characterByte;
+    }
+    receivedPayload[payloadIdx] = '\0';
+    fscanf(fp, "%8s", token);
+    printf("CRC : %s\n", token);
+    fclose(fp);
+    printf("Stuffed Data : %s\n", receivedPayload);
+    performCharacterDestuffing(receivedPayload);
+    printf("Destuffed Data   : %s\n", destuffedMessage);
+    return 0;
+}
+[24bcs128@mepcolinux ex1]$cc ex2.c
+[24bcs128@mepcolinux ex1]$./a.out
+SYN      : 00010110
+SYN      : 00010110
+SOH      : 00000001
+HEADER
+Source MAC  : 10101010 10111011 11001100 11011101 11101110 11111111
+Dest MAC     : 00010001 00100010 00110011 01000100 01010101 01100110
+Source IP    : 11000000 10101000 00000001 00001010
+Dest IP      : 10001110 11111010 10111110 00101110
+Source Port  : 10100110 01100101
+Dest Port    : 11000011 10000110
+STX : 00000010
+CRC : 00000000
+Stuffed Data : Hello DLE DLE DLE ETX DLE STX World
+Destuffed Data   : Hello DLE ETX STX World
+[24bcs128@mepcolinux ex1]$cat exe3.c
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <time.h>
+struct NetworkTable
+{
+    char url[30];
+    int ip[4];
+    char mac[20];
+};
+struct NetworkTable table[20];
+int entryCount = 0;
+char Message[1000];
+int Binary(int num, char *str)
+{
+    int i;
+    for(i=0;i<8;i++)
+        str[i]='0';
+    str[8]='\0';
+    for(i=7;i>=0;i--)
+    {
+        if(num%2)
+            str[i]='1';
+        num/=2;
+    }
+    return 1;
+}
+int portToBinary(int port,char *str)
+{
+    char high[9],low[9];
+    int index=0,i;
+    Binary(port/256,high);
+    Binary(port%256,low);
+    for(i=0;i<8;i++)
+        str[index++]=high[i];
+    str[index++]=' ';
+    for(i=0;i<8;i++)
+        str[index++]=low[i];
+    str[index]='\0';
+    return 1;
+}
+int macToBinary(const char *mac,char *str)
+{
+    int len=strlen(mac);
+    int index=0,count=0;
+    int i,j;
+    for(i=0;i<len;i++)
+    {
+        int value,temp;
+        if(mac[i]==':')
+            continue;
+        if(mac[i]>='0' && mac[i]<='9')
+            value=mac[i]-'0';
+        else if(mac[i]>='A' && mac[i]<='F')
+            value=mac[i]-'A'+10;
+        else
+            value=mac[i]-'a'+10;
+        temp=value;
+        for(j=3;j>=0;j--)
+        {
+            if(temp%2)
+                str[index+j]='1';
+            else
+                str[index+j]='0';
+            temp/=2;
+        }
+        index+=4;
+        count++;
+        if(count%2==0 && i<len-1)
+            str[index++]=' ';
+    }
+    str[index]='\0';
+    return 1;
+}
+void displayByteCountFrame(int sIdx, int dIdx, const char *buffer, int srcPort)
+{
+    char binary[9];
+    char ipBuffer[50];
+    char macBuffer[100];
+    char portBuffer[30];
+    int i;
+    int byteCount = strlen(buffer);
+    FILE *fp;
+fp = fopen("sender.txt", "w");
+if(fp == NULL)
+{
+    printf("Unable to create sender.txt\n");
+    return;
+}
+fprintf(fp,"00010110 ");
+fprintf(fp,"00010110 ");
+fprintf(fp,"00000001 ");
+portToBinary(byteCount, portBuffer);
+fprintf(fp,"%s", portBuffer+2);
+macToBinary(table[sIdx].mac, macBuffer);
+fprintf(fp,"%s ", macBuffer);
+macToBinary(table[dIdx].mac, macBuffer);
+fprintf(fp,"%s ", macBuffer);
+    ipBuffer[0] = '\0';
+    for(i = 0; i < 4; i++)
+    {
+        Binary(table[sIdx].ip[i], binary);
+        strcat(ipBuffer, binary);
+        if(i != 3)
+            strcat(ipBuffer, " ");
+    }
+    fprintf(fp,"%s\n\n", ipBuffer);
+    ipBuffer[0] = '\0';
+    for(i = 0; i < 4; i++)
+    {
+        Binary(table[dIdx].ip[i], binary);
+        strcat(ipBuffer, binary);
+        if(i != 3)
+            strcat(ipBuffer, " ");
+    }
+    fprintf(fp,"%s\n\n", ipBuffer);
+    portToBinary(srcPort, portBuffer);
+    fprintf(fp,"%s\n\n", portBuffer);
+    portToBinary(50054, portBuffer);
+    fprintf(fp,"%s\n\n", portBuffer);
+for(i = 0; i < byteCount; i++)
+{
+    Binary((unsigned char)buffer[i], binary);
+    fprintf(fp,"%s ", binary);
+}
+fprintf(fp,"00000000 ");
+fclose(fp);
+    printf("-----------------------------------------\n");
+    printf("              DDCMP BYTE COUNT FRAME\n");
+    printf("------------------------------------------\n\n");
+    printf("SYN\n");
+    printf("00010110\n\n");
+    printf("SYN\n");
+    printf("00010110\n\n");
+    printf("CLASS\n");
+    printf("00000001\n\n");
+    printf("COUNT\n");
+    portToBinary(byteCount, portBuffer);
+    printf("%s\n\n", portBuffer+2);
+    printf("HEADER\n\n");
+    printf("Source MAC\n");
+    macToBinary(table[sIdx].mac, macBuffer);
+    printf("%s\n\n", macBuffer);
+    printf("Destination MAC\n");
+    macToBinary(table[dIdx].mac, macBuffer);
+    printf("%s\n\n", macBuffer);
+    printf("Source IP\n");
+    ipBuffer[0] = '\0';
+    for(i = 0; i < 4; i++)
+    {
+        Binary(table[sIdx].ip[i], binary);
+        strcat(ipBuffer, binary);
+        if(i != 3)
+            strcat(ipBuffer, " ");
+    }
+    printf("%s\n\n", ipBuffer);
+    printf("Destination IP\n");
+    ipBuffer[0] = '\0';
+    for(i = 0; i < 4; i++)
+    {
+        Binary(table[dIdx].ip[i], binary);
+        strcat(ipBuffer, binary);
+        if(i != 3)
+            strcat(ipBuffer, " ");
+    }
+    printf("%s\n\n", ipBuffer);
+    printf("Source Port\n");
+    portToBinary(srcPort, portBuffer);
+    printf("%s\n\n", portBuffer);
+    printf("Destination Port\n");
+    portToBinary(50054, portBuffer);
+    printf("%s\n\n", portBuffer);
+    printf("BODY\n\n");
+    for(i = 0; i < byteCount; i++)
+    {
+        Binary((unsigned char)buffer[i], binary);
+        printf("%s ", binary);
+    }
+    printf("\n\n");
+    printf("CRC\n");
+    printf("00000000\n\n");
+}
+void displayTable()
+{
+    int i;
+    printf("\n------------------------------------------------------------\n");
+    printf("%-20s %-18s %-20s\n",
+           "URL","IP Address","MAC Address");
+    printf("------------------------------------------------------------\n");
+    for(i=0;i<entryCount;i++)
+    {
+        printf("%-20s %3d.%-3d.%-3d.%-3d %-20s\n",
+               table[i].url,
+               table[i].ip[0],
+               table[i].ip[1],
+               table[i].ip[2],
+               table[i].ip[3],
+               table[i].mac);
+    }
+    printf("------------------------------------------------------------\n");
+}
+int printApplicationLayer(const char *buffer,int totalLen)
+{
+    int i;
+    printf("\n----------------------------------------\n");
+    printf(" LAYER 1 : APPLICATION LAYER\n");
+    printf("----------------------------------------\n");
+    printf("Message : %s\n",buffer);
+    printf("\nBinary Message\n");
+    for(i=0;i<totalLen;i++)
+    {
+        char binary[9];
+        Binary((unsigned char)buffer[i],binary);
+        printf("%s ",binary);
+    }
+    printf("\n");
+    return 1;
+}
+int printTransportLayer(int srcPort,const char *buffer,int totalLen)
+{
+    int i;
+    char srcPortBin[30];
+    char destPortBin[30];
+    portToBinary(srcPort,srcPortBin);
+    portToBinary(50054,destPortBin);
+    printf("\n----------------------------------------\n");
+    printf(" LAYER 2 : TRANSPORT LAYER\n");
+    printf("----------------------------------------\n");
+    printf("Source Port      : %d\n",srcPort);
+    printf("Destination Port : 50054\n");
+    printf("\nBinary Format\n");
+    printf("Source Port      : %s\n",srcPortBin);
+    printf("Destination Port : %s\n",destPortBin);
+    printf("\nSegment Output\n");
+    printf("%s %s ",srcPortBin,destPortBin);
+    for(i=0;i<totalLen;i++)
+    {
+        char binary[9];
+        Binary((unsigned char)buffer[i],binary);
+        printf("%s ",binary);
+    }
+    printf("\n");
+    return 1;
+}
+int printNetworkLayer(int sIdx,int dIdx,const char *buffer,int totalLen,int packetBitSize,int srcPort)
+{
+    int i, k;
+    int packetNo = 1;
+    int bytesPerPacket = packetBitSize / 8;
+    char srcIP[50] = "";
+    char destIP[50] = "";
+    char srcPortBin[30];
+    char destPortBin[30];
+    char temp[9];
+    char binary[9];
+    if(bytesPerPacket <= 0)
+        bytesPerPacket = 1;
+    for(i=0;i<4;i++)
+    {
+        Binary(table[sIdx].ip[i],temp);
+        strcat(srcIP,temp);
+        if(i<3)
+            strcat(srcIP," ");
+    }
+    for(i=0;i<4;i++)
+    {
+        Binary(table[dIdx].ip[i],temp);
+        strcat(destIP,temp);
+        if(i<3)
+            strcat(destIP," ");
+    }
+    portToBinary(srcPort,srcPortBin);
+    portToBinary(50054,destPortBin);
+    printf("\n--------------------------------\n");
+    printf(" LAYER 3 : NETWORK LAYER\n");
+    printf("----------------------------------\n");
+    printf("Packet Size : %d Bits\n",packetBitSize);
+    for(i=0;i<totalLen;i+=bytesPerPacket)
+    {
+        int currentLength = bytesPerPacket;
+        if(i+currentLength>totalLen)
+            currentLength=totalLen-i;
+        printf("\n----------------------------------------\n");
+        printf("PACKET %d\n",packetNo++);
+        printf("----------------------------------------\n");
+        printf("Source IP        : %d.%d.%d.%d\n",table[sIdx].ip[0],table[sIdx].ip[1],table[sIdx].ip[2],table[sIdx].ip[3]);
+        printf("Destination IP   : %d.%d.%d.%d\n",table[dIdx].ip[0],table[dIdx].ip[1],table[dIdx].ip[2],table[dIdx].ip[3]);
+        printf("Source Port      : %d\n",srcPort);
+        printf("Destination Port : 50054\n");
+        printf("\nPacket Binary\n");
+        printf("%s ",srcIP);
+        printf("%s ",destIP);
+        printf("%s ",srcPortBin);
+        printf("%s ",destPortBin);
+        for(k=0;k<currentLength;k++)
+        {
+            Binary((unsigned char)buffer[i+k],binary);
+            printf("%s ",binary);
+        }
+        printf("\n");
+    }
+    return 1;
+}
+void printDataLinkLayer(int sIdx,int dIdx,int srcPort,const char *buffer)
+{
+    int i;
+    char srcMacBin[100];
+    char destMacBin[100];
+    char srcPortBin[30];
+    char destPortBin[30];
+    char srcIP[50]="";
+    char destIP[50]="";
+    char temp[9];
+    char binary[9];
+    macToBinary(table[sIdx].mac,srcMacBin);
+    macToBinary(table[dIdx].mac,destMacBin);
+    portToBinary(srcPort,srcPortBin);
+    portToBinary(50054,destPortBin);
+    for(i=0;i<4;i++)
+    {
+        Binary(table[sIdx].ip[i],temp);
+        strcat(srcIP,temp);
+        if(i<3)
+            strcat(srcIP," ");
+    }
+    for(i=0;i<4;i++)
+    {
+        Binary(table[dIdx].ip[i],temp);
+        strcat(destIP,temp);
+        if(i<3)
+            strcat(destIP," ");
+    }
+    printf("\n--------------------------------------------\n");
+    printf("               LAYER 4 : DATA LINK LAYER\n");
+    printf("----------------------------------------------\n");
+    printf("\nMessage : %s\n",Message);
+    displayByteCountFrame(sIdx, dIdx,buffer, srcPort);
+}
+void printPhysicalLayer()
+{
+    int i;
+    char binary[9];
+    printf("\n------------------------------\n");
+    printf(" LAYER 5 : PHYSICAL LAYER\n");
+    printf("--------------------------------\n");
+    printf("Transmitting Data\n\n");
+    for(i=0;Message[i]!='\0';i++)
+    {
+        Binary((unsigned char)Message[i],binary);
+        printf("%s ",binary);
+    }
+    printf("\n");
+}
+void printTransmission(int sIdx,int dIdx,int srcPort)
+{
+    printf("Source URL      : %s\n",table[sIdx].url);
+    printf("Destination URL : %s\n",table[dIdx].url);
+    printf("Source Port     : %d\n",srcPort);
+    printf("Destination Port: 50054\n");
+    printf("Source IP       : %d.%d.%d.%d\n",table[sIdx].ip[0],table[sIdx].ip[1],table[sIdx].ip[2],table[sIdx].ip[3]);
+    printf("Destination IP  : %d.%d.%d.%d\n",table[dIdx].ip[0],table[dIdx].ip[1],table[dIdx].ip[2],table[dIdx].ip[3]);
+    printf("Source MAC      : %s\n",table[sIdx].mac);
+    printf("Destination MAC : %s\n",table[dIdx].mac);
+    printf("\nMessage : %s\n",Message);
+}
+void executeNetwork(int sIdx,
+                    int dIdx,
+                    const char *buffer,
+                    int totalLen,
+                    int srcPort,
+                    int packetBitSize)
+{
+    printApplicationLayer(buffer,totalLen);
+    printTransportLayer(srcPort,
+                        buffer,
+                        totalLen);
+    printNetworkLayer(sIdx,
+                      dIdx,
+                      buffer,
+                      totalLen,
+                      packetBitSize,
+                      srcPort);
+    strcpy(Message,buffer);
+    printDataLinkLayer(sIdx,
+                       dIdx,
+                       srcPort,buffer);
+    printPhysicalLayer();
+    printTransmission(sIdx,
+                      dIdx,
+                      srcPort);
+}
+int main()
+{
+    int i, j;
+    int sIdx, dIdx;
+    int len;
+    int packetBitSize;
+    int randomSrcPort;
+    char src[30];
+    char dest[30];
+    char fileName[30];
+    char buffer[100];
+    FILE *fp;
+    srand((unsigned int)time(NULL));
+    strcpy(table[0].url, "client.lan");
+    table[0].ip[0] = 192;
+    table[0].ip[1] = 168;
+    table[0].ip[2] = 1;
+    table[0].ip[3] = 10;
+    strcpy(table[0].mac, "AA:BB:CC:DD:EE:FF");
+    strcpy(table[1].url, "google.com");
+    table[1].ip[0] = 142;
+    table[1].ip[1] = 250;
+    table[1].ip[2] = 190;
+    table[1].ip[3] = 46;
+    strcpy(table[1].mac, "11:22:33:44:55:66");
+    entryCount=2;
+            printf("\nSource URL : ");
+            scanf("%s", src);
+            printf("Destination URL : ");
+            scanf("%s", dest);
+            printf("Packet Size (Bits) : ");
+            scanf("%d",&packetBitSize);
+            printf("Enter File Name : ");
+            scanf("%s", fileName);
+            fp=fopen(fileName,"r");
+            if(fp==NULL)
+            {
+                printf("\nFile Not Found.\n");
+            }
+            fgets(buffer,sizeof(buffer),fp);
+            fclose(fp);
+            len=strlen(buffer);
+            if(len>0 && buffer[len-1]=='\n')
+            {
+                buffer[len-1]='\0';
+                len--;
+            }
+            sIdx=-1;
+            dIdx=-1;
+            for(i=0;i<entryCount;i++)
+            {
+                if(strcmp(src,table[i].url)==0)
+                    sIdx=i;
+                if(strcmp(dest,table[i].url)==0)
+                    dIdx=i;
+            }
+            if(sIdx==-1 || dIdx==-1)
+            {
+                printf("\nInvalid Source/Destination URL.\n");
+            }
+            randomSrcPort=(rand()%49152)+1024;
+            executeNetwork(
+                sIdx,
+                dIdx,
+                buffer,
+                len,
+                randomSrcPort,
+                packetBitSize
+            );
+            return 0;
+}
+[24bcs128@mepcolinux ex1]$cc exe3.c
+[24bcs128@mepcolinux ex1]$./a.out
+
+Source URL : google.com
+Destination URL : client.lan
+Packet Size (Bits) : 32
+Enter File Name : input.txt
+
+----------------------------------------
+ LAYER 1 : APPLICATION LAYER
+----------------------------------------
+Message : Hello World
+
+Binary Message
+01001000 01100101 01101100 01101100 01101111 00100000 01010111 01101111 01110010 01101100 01100100
+
+----------------------------------------
+ LAYER 2 : TRANSPORT LAYER
+----------------------------------------
+Source Port      : 5598
+Destination Port : 50054
+
+Binary Format
+Source Port      : 00010101 11011110
+Destination Port : 11000011 10000110
+
+Segment Output
+00010101 11011110 11000011 10000110 01001000 01100101 01101100 01101100 01101111 00100000 01010111 01101111 01110010 01101100 01100100
+
+--------------------------------
+ LAYER 3 : NETWORK LAYER
+----------------------------------
+Packet Size : 32 Bits
+
+----------------------------------------
+PACKET 1
+----------------------------------------
+Source IP        : 142.250.190.46
+Destination IP   : 192.168.1.10
+Source Port      : 5598
+Destination Port : 50054
+
+Packet Binary
+10001110 11111010 10111110 00101110 11000000 10101000 00000001 00001010 00010101 11011110 11000011 10000110 01001000 01100101 01101100 01101100
+
+----------------------------------------
+PACKET 2
+----------------------------------------
+Source IP        : 142.250.190.46
+Destination IP   : 192.168.1.10
+Source Port      : 5598
+Destination Port : 50054
+
+Packet Binary
+10001110 11111010 10111110 00101110 11000000 10101000 00000001 00001010 00010101 11011110 11000011 10000110 01101111 00100000 01010111 01101111
+
+----------------------------------------
+PACKET 3
+----------------------------------------
+Source IP        : 142.250.190.46
+Destination IP   : 192.168.1.10
+Source Port      : 5598
+Destination Port : 50054
+
+Packet Binary
+10001110 11111010 10111110 00101110 11000000 10101000 00000001 00001010 00010101 11011110 11000011 10000110 01110010 01101100 01100100
+
+--------------------------------------------
+               LAYER 4 : DATA LINK LAYER
+----------------------------------------------
+
+Message : Hello World
+-----------------------------------------
+              DDCMP BYTE COUNT FRAME
+------------------------------------------
+
+SYN
+00010110
+
+SYN
+00010110
+
+CLASS
+00000001
+
+COUNT
+000000 00001011
+
+HEADER
+
+Source MAC
+00010001 00100010 00110011 01000100 01010101 01100110
+
+Destination MAC
+10101010 10111011 11001100 11011101 11101110 11111111
+
+Source IP
+10001110 11111010 10111110 00101110
+
+Destination IP
+11000000 10101000 00000001 00001010
+
+Source Port
+00010101 11011110
+
+Destination Port
+11000011 10000110
+
+BODY
+
+01001000 01100101 01101100 01101100 01101111 00100000 01010111 01101111 01110010 01101100 01100100
+
+CRC
+00000000
+
+
+------------------------------
+ LAYER 5 : PHYSICAL LAYER
+--------------------------------
+Transmitting Data
+
+01001000 01100101 01101100 01101100 01101111 00100000 01010111 01101111 01110010 01101100 01100100
+Source URL      : google.com
+Destination URL : client.lan
+Source Port     : 5598
+Destination Port: 50054
+Source IP       : 142.250.190.46
+Destination IP  : 192.168.1.10
+Source MAC      : 11:22:33:44:55:66
+Destination MAC : AA:BB:CC:DD:EE:FF
+
+Message : Hello World
+[24bcs128@mepcolinux ex1]$cat exe4.c
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <ctype.h>
+
+#define MAX_BITS 2048
+unsigned int binary(const char *binary_str, int start, int length) {
+    unsigned int val = 0;
+    int i;
+    for (i = 0; i < length; i++) {
+        val <<= 1;
+        if (binary_str[start + i] == '1') {
+            val |= 1;
+        }
+    }
+    return val;
+}
+void print_as_binary(unsigned int value, int bit_width) {
+    int i;
+    for (i = bit_width - 1; i >= 0; i--) {
+        printf("%d", (value >> i) & 1);
+    }
+}
+void print_bit_block(const char *binary_str, int start_bit, int bit_length) {
+    int i;
+    for (i = 0; i < bit_length; i++) {
+        printf("%c", binary_str[start_bit + i]);
+    }
+}
+int main() {
+    char file_name[256];
+    char raw_buffer[MAX_BITS];
+    char binary_str[MAX_BITS];
+    char decoded_message[256];
+    FILE *file;
+    int bit_count = 0;
+    int i = 0;
+    int msg_index = 0;
+    unsigned int syn1;
+    unsigned int syn2;
+    unsigned int class_val;
+    unsigned int count_val;
+    unsigned int crc;
+    int header_start_bit = 38;
+    int total_payload_bits;
+    int message_bits_len;
+    int header_bits_len;
+    int message_start_bit;
+    int actual_msg_length;
+    unsigned int char_code;
+    int src_mac_offset   = 0;
+    int dest_mac_offset  = 48;
+    int src_ip_offset    = 96;
+    int dest_ip_offset   = 128;
+    int src_port_offset  = 160;
+    int dest_port_offset = 176;
+    printf("Enter the binary data file name: ");
+    if (scanf("%255s", file_name) != 1) {
+        printf("Error reading file name input.\n");
+        return 1;
+    }
+    file = fopen(file_name, "r");
+    if (file == NULL) {
+        printf("Can't open file");
+        return 1;
+    }
+    while (fgets(raw_buffer, sizeof(raw_buffer), file) != NULL) {
+        for (i = 0; raw_buffer[i] != '\0'; i++) {
+            if (raw_buffer[i] == '0' || raw_buffer[i] == '1') {
+                if (bit_count < MAX_BITS - 1) {
+                    binary_str[bit_count] = raw_buffer[i];
+                    bit_count++;
+                }
+            }
+        }
+    }
+    binary_str[bit_count] = '\0';
+    fclose(file);
+    if (bit_count < 46) {
+        printf("Error: File data does not contain enough bits for a frame prefix.\n");
+        return 1;
+    }
+    syn1       = binary(binary_str, 0, 8);
+    syn2       = binary(binary_str, 8, 8);
+    class_val  = binary(binary_str, 16, 8);
+    count_val  = binary(binary_str, 24, 14);
+    crc        = binary(binary_str, bit_count - 8, 8);
+    total_payload_bits = (bit_count - 8) - header_start_bit;
+    message_bits_len = count_val * 8;
+    header_bits_len = total_payload_bits - message_bits_len;
+    message_start_bit = header_start_bit + header_bits_len;
+    actual_msg_length = message_bits_len / 8;
+    for (i = 0; i < actual_msg_length && msg_index < 255; i++) {
+        char_code = binary(binary_str, message_start_bit + (i * 8), 8);
+        decoded_message[msg_index] = (char)char_code;
+        msg_index++;
+    }
+    decoded_message[msg_index] = '\0';
+    printf("SYN             : ");
+    print_as_binary(syn1, 8);
+    printf("\n");
+    printf("SYN             : ");
+    print_as_binary(syn2, 8);
+    printf("\n");
+    printf("CLASS             : ");
+    print_as_binary(class_val, 8);
+    printf("\n");
+    printf("COUNT      : ");
+    print_as_binary(count_val, 14);
+    printf("\n");
+    printf("Header\n");
+    print_as_binary(header_bits_len / 8, 8);
+    printf("\n");
+    if (header_bits_len >= 192) {
+        printf("Source MAC        : ");
+        print_bit_block(binary_str, header_start_bit + src_mac_offset, 48);
+        printf("\n");
+        printf("Destination MAC   : ");
+        print_bit_block(binary_str, header_start_bit + dest_mac_offset, 48);
+        printf("\n");
+        printf("Source IP         : ");
+        print_bit_block(binary_str, header_start_bit + src_ip_offset, 32);
+        printf("\n");
+        printf("Destination IP    : ");
+        print_bit_block(binary_str, header_start_bit + dest_ip_offset, 32);
+        printf("\n");
+        printf("Source Port       : ");
+        print_bit_block(binary_str, header_start_bit + src_port_offset, 16);
+        printf("\n");
+        printf("Destination Port  : ");
+        print_bit_block(binary_str, header_start_bit + dest_port_offset, 16);
+        printf("\n");
+    }
+    else
+    {
+        printf("Source MAC        : ");
+        print_bit_block(binary_str, header_start_bit, header_bits_len >= 48 ? 48 : header_bits_len);
+        printf("\n");
+        printf("Destination MAC   : ");
+        if (header_bits_len > 48) {
+            print_bit_block(binary_str, header_start_bit + 48, header_bits_len - 48);
+        }
+        printf("\n");
+        printf("Source IP         : \n");
+        printf("Destination IP    : \n");
+        printf("Source Port       : \n");
+        printf("Destination Port  : \n");
+    }
+    printf("BODY : ");
+    print_as_binary(actual_msg_length, 8);
+    printf("CRC    : ");
+    print_as_binary(crc, 8);
+    printf("\n");
+    printf("Decoded Message   : \"%s\"\n", decoded_message);
+    return 0;
+}
+[24bcs128@mepcolinux ex1]$cc exe4.c
+[24bcs128@mepcolinux ex1]$./a.out
+Enter the binary data file name: sender.txt
+SYN             : 00010110
+SYN             : 00010110
+CLASS           : 00000001
+COUNT           : 00000000001011
+Header
+00011000
+Source MAC        : 000100010010001000110011010001000101010101100110
+Destination MAC   : 101010101011101111001100110111011110111011111111
+Source IP         : 10001110111110101011111000101110
+Destination IP    : 11000000101010000000000100001010
+Source Port       : 0001010111011110
+Destination Port  : 1100001110000110
+BODY : 00001011
+CRC    : 00000000
+Decoded Message   : "Hello World"
+[24bcs128@mepcolinux ex1]$exit
+exit
+Script done on Fri Jul 24 15:07:26 2026
+[24bcs128@mepcolinux ex1]$cd ..
+
+
+
+
+
+
+
+[24bcs128@mepcolinux nw]$cd ex0
+[24bcs128@mepcolinux ex0]$cat ex0.prn
+Script started on Thursday 16 July 2026 09:51:05 AM IST
+[24bcs128@mepcolinux ex0]$cat exer0.c
+#include <stdio.h>
+#include <string.h>
+#include <stdlib.h>
+#include <time.h>
+struct NetworkTable
+{
+    char url[30];
+    int ip[4];
+    char mac[20];
+};
+struct NetworkTable table[20];
+int entryCount = 0;
+int Binary(int num, char *str)
+{
+    int temp = num;
+    int i;
+    for(i = 0; i < 8; i++)
+    {
+        str[i] = '0';
+    }
+    str[8] = '\0';
+    for (i = 7; i >= 0; i--)
+    {
+        if (temp % 2 == 1)
+        {
+            str[i] = '1';
+        } else {
+            str[i] = '0';
+        }
+        temp = temp / 2;
+    }
+    return 1;
+}
+int portToBinary(int port, char *str)
+{
+    int highByte = port / 256;
+    int lowByte = port % 256;
+    int i;
+    int index = 0;
+    char highbin[9],lowbin[9];
+    Binary(highByte, highbin);
+    Binary(lowByte, lowbin);
+    for(i = 0; i < 8; i++)
+    {
+        str[index] = highbin[i];
+        index++;
+    }
+    str[index] = ' ';
+    index++;\
+    for(i = 0; i < 8; i++) {
+        str[index] = lowbin[i];
+        index++;
+    }
+    str[index] = '\0';
+    return 1;
+}
+int macToBinary(const char *mac, char *str)
+{
+    int len = (int)strlen(mac);
+    int Idx = 0;
+    int Count = 0;
+    int i, j;
+    for (i = 0; i < len; i++)
+    {
+        char c;
+        int digit = 0;
+        int temp;
+        if (mac[i] == ':')
+        {
+            continue;
+        }
+        c = mac[i];
+        if (c >= '0' && c <= '9') digit = c - '0';
+        else if (c >= 'A' && c <= 'F') digit = c - 'A' + 10;
+        else if (c >= 'a' && c <= 'f') digit = c - 'a' + 10;
+        temp = digit;
+        for (j = 3; j >= 0; j--)
+        {
+            if (temp % 2 == 1)
+            {
+                str[Idx + j] = '1';
+            }
+            else
+            {
+                str[Idx + j] = '0';
+            }
+            temp = temp / 2;
+        }
+        Idx += 4;
+        Count++;
+        if (Count % 2 == 0 && i < len - 1) {
+            str[Idx] = ' ';
+            Idx++;
+        }
+    }
+    str[Idx] = '\0';
+    return 1;
+}
+void displayTable() {
+    int i;
+    printf("\n--------------- NETWORK ROUTING TABLE --------------------\n");
+    printf("%-20s | %-15s | %-15s\n", "URL", "IP Address", "MAC Address");
+    printf("------------------------------------------------------------\n");
+    for (i = 0; i < entryCount; i++) {
+        printf("%-20s | %3d.%-3d.%-3d.%-3d | %-15s\n",
+               table[i].url, table[i].ip[0], table[i].ip[1], table[i].ip[2], table[i].ip[3], table[i].mac);
+    }
+    printf("--------------------------------------------------------------\n");
+}
+int printApplicationLayer(const char *buffer, int totalLen) {
+    int i;
+    printf("\n---------------------------------\n");
+    printf(" LAYER 1 : APPLICATION LAYER\n");
+    printf("---------------------------------\n");
+    printf("  Message        : %s\n", buffer);
+    printf("  Binary Format  : ");
+    for (i = 0; i < totalLen; i++) {
+        char binaryStr[9];
+        Binary((int)buffer[i], binaryStr);
+        printf("%s%s", binaryStr, (i < totalLen - 1) ? " " : "");
+    }
+    return 1;
+}
+int printTransportLayer(int srcPort, const char *buffer, int totalLen) {
+    int destPort = 50054;
+    int i;
+    char srcPortBin[30], destPortBin[30];
+    portToBinary(srcPort, srcPortBin);
+    portToBinary(destPort, destPortBin);
+    printf("\n--------------------------------------------\n");
+    printf(" LAYER 2 : TRANSPORT LAYER (SEGMENT)\n");
+    printf("--------------------------------------------\n");
+    printf("  Source Port              : %d \n", srcPort);
+    printf("  Destination Port         : %d\n", destPort);
+    printf("---------------------------------------------\n");
+    printf(" Binary Format\n");
+    printf(" Source Port               : %s\n", srcPortBin);
+    printf(" Destination Port          : %s\n", destPortBin);
+    printf("---------------------------------------------\n");
+    printf(" Layer Output:\n");
+    printf("%s %s ", srcPortBin, destPortBin);
+    for (i = 0; i < totalLen; i++) {
+        char binaryStr[9];
+        Binary((int)buffer[i], binaryStr);
+        printf("%s%s", binaryStr, (i < totalLen - 1) ? " " : "");
+    }
+     return 1;
+}
+int printNetworkLayer(int sIdx, int dIdx, const char *buffer, int totalLen, int packetBitSize, int srcPort) {
+    int i, k, m;
+    int packetCount = 0;
+    char pBin[9];
+    char ipBinSrc[50], ipBinDest[50], tempIp[9];
+    char srcPortBin[30], destPortBin[30];
+    int charSize = packetBitSize / 8;
+    if (charSize < 1) charSize = 2;
+    portToBinary(srcPort, srcPortBin);
+    portToBinary(50054, destPortBin);
+    ipBinSrc[0] = '\0';
+    for(i = 0; i < 4; i++) {
+        Binary(table[sIdx].ip[i], tempIp);
+        strcat(ipBinSrc, tempIp);
+        if(i < 3)
+           strcat(ipBinSrc, " ");
+    }
+    ipBinDest[0] = '\0';
+    for(i = 0; i < 4; i++) {
+        Binary(table[dIdx].ip[i], tempIp);
+        strcat(ipBinDest, tempIp);
+        if(i < 3)
+           strcat(ipBinDest, " ");
+    }
+    printf("\n---------------------------------------\n");
+    printf(" LAYER 3 : NETWORK LAYER \n");
+    printf("----------------------------------------\n");
+    for (i = 0; i < totalLen; i += charSize) {
+        int currentLength = charSize;
+        if (i + currentLength > totalLen) {
+            currentLength = totalLen - i;
+        }
+        packetCount++;
+        printf(" Packet %d\n", packetCount);
+        printf("  Source IP        : %d.%d.%d.%d\n", table[sIdx].ip[0], table[sIdx].ip[1], table[sIdx].ip[2], table[sIdx].ip[3]);
+        printf("  Destination IP   : %d.%d.%d.%d\n", table[dIdx].ip[0], table[dIdx].ip[1], table[dIdx].ip[2], table[dIdx].ip[3]);
+        printf("----------------------------------------\n");
+        printf(" Packet Binary Output:\n");
+
+        printf("%s %s %s %s ", ipBinSrc, ipBinDest, srcPortBin, destPortBin);
+        for (k = 0; k < currentLength; k++) {
+            Binary((int)buffer[i + k], pBin);
+            printf("%s%s", pBin, (k < currentLength - 1) ? " " : "");
+        }
+        printf("\n\n");
+    }
+    printf(" Combined Fragmented Stream:\n ");
+    for (m = 0; m < totalLen; m += charSize) {
+        int currentLength = charSize;
+        if (m + currentLength > totalLen) {
+            currentLength = totalLen - m;
+        }
+        printf("%s %s %s %s ", ipBinSrc, ipBinDest, srcPortBin, destPortBin);
+        for (k = 0; k < currentLength; k++) {
+            Binary((int)buffer[m + k], pBin);
+            printf("%s", pBin);
+            if (k < currentLength - 1)
+               printf(" ");
+        }
+        if (m + charSize < totalLen)
+           printf(" ");
+    }
+    return packetCount;
+}
+int printDataLinkLabel(int sIdx, int dIdx, const char *buffer, int totalLen, int srcPort, int packetBitSize, int frameBitSize) {
+    int i;
+    int charSize = packetBitSize / 8;
+    if (charSize < 1) charSize = 2;
+    int totalPackets = (totalLen + (charSize - 1)) / charSize;
+    int grandTotalFrames = 0;
+    char srcMacBin[100], destMacBin[100];
+    char srcPortBin[30], destPortBin[30];
+    char ipBinSrc[50], ipBinDest[50], temp[9];
+    macToBinary(table[sIdx].mac, srcMacBin);
+    macToBinary(table[dIdx].mac, destMacBin);
+    portToBinary(srcPort, srcPortBin);
+    portToBinary(50054, destPortBin);
+    ipBinSrc[0] = '\0';
+    for(i = 0; i < 4; i++) {
+        Binary(table[sIdx].ip[i], temp);
+        strcat(ipBinSrc, temp);
+        if(i < 3)
+           strcat(ipBinSrc, " ");
+    }
+    ipBinDest[0] = '\0';
+    for(i = 0; i < 4; i++) {
+        Binary(table[dIdx].ip[i], temp);
+        strcat(ipBinDest, temp);
+        if(i < 3)
+           strcat(ipBinDest, " ");
+    }
+    int currentFrameNum = 1;
+    int pIdx, frameInPacket;
+    printf("\n-------------------------------\n");
+    printf(" LAYER 4 : DATA LINK LAYER \n");
+    printf("---------------------------------\n");
+    for (pIdx = 0; pIdx < totalPackets; pIdx++) {
+        int byteStart = pIdx * charSize;
+        int bytesInPacket = charSize;
+        if (byteStart + bytesInPacket > totalLen) {
+            bytesInPacket = totalLen - byteStart;
+        }
+        int bitsInPacket = bytesInPacket * 8;
+        int framesForPacket = (bitsInPacket + (frameBitSize - 1)) / frameBitSize;
+        printf("\n--------------------------------------------------------------\n");
+        printf("PACKET %d (Contains %d Bits)\n", pIdx + 1, bitsInPacket);
+        printf("--------------------------------------------------------------\n");
+        for (frameInPacket = 1; frameInPacket <= framesForPacket; frameInPacket++) {
+            int payloadBits = frameBitSize;
+            int paddingBits = 0;
+            char payloadString[128];
+            int bitStart = (frameInPacket - 1) * frameBitSize;
+            if (bitStart + payloadBits > bitsInPacket) {
+                payloadBits = bitsInPacket - bitStart;
+                paddingBits = frameBitSize - payloadBits;
+            }
+            int b;
+            for (b = 0; b < payloadBits; b++) {
+                int BitPos = bitStart + b;
+                int charset = BitPos / 8;
+                int bitShift = 7 - (BitPos % 8);
+                int bitVal = (buffer[byteStart + charset] >> bitShift) & 1;
+                payloadString[b] = bitVal ? '1' : '0';
+            }
+            payloadString[payloadBits] = '\0';
+            printf("\nFrame %d\n", currentFrameNum);
+            printf("  Source MAC      : %s\n", table[sIdx].mac);
+            printf("  Destination MAC : %s\n", table[dIdx].mac);
+            printf("  Payload Bits    : %d\n", payloadBits);
+            printf("  Payload Text    : %s\n", payloadString);
+            printf("  Padding Bits    : %d\n", paddingBits);
+            if (paddingBits > 0) {
+                printf("  Padding Content : ");
+                for(b = 0; b < paddingBits; b++) printf("0");
+                printf("\n");
+            }
+            printf("  Error Control   : 00000000\n");
+            currentFrameNum++;
+            grandTotalFrames++;
+        }
+    }
+    printf("\n----------------------------------------\n");
+    printf(" COMPLETE BINARY FRAME STREAM OUTPUT\n");
+    printf("------------------------------------------\n\n");
+    currentFrameNum = 1;
+    for (pIdx = 0; pIdx < totalPackets; pIdx++) {
+        int byteStart = pIdx * charSize;
+        int bytesInPacket = charSize;
+        if (byteStart + bytesInPacket > totalLen) {
+            bytesInPacket = totalLen - byteStart;
+        }
+        int bitsInPacket = bytesInPacket * 8;
+        int framesForPacket = (bitsInPacket + (frameBitSize - 1)) / frameBitSize;
+        for (frameInPacket = 1; frameInPacket <= framesForPacket; frameInPacket++) {
+            int payloadBits = frameBitSize;
+            int paddingBits = 0;
+            char payloadString[128];
+            int bitStart = (frameInPacket - 1) * frameBitSize;
+            if (bitStart + payloadBits > bitsInPacket) {
+                payloadBits = bitsInPacket - bitStart;
+                paddingBits = frameBitSize - payloadBits;
+            }
+            int b;
+            for (b = 0; b < payloadBits; b++) {
+                int BitPos = bitStart + b;
+                int charset = BitPos / 8;
+                int bitShift = 7 - (BitPos % 8);
+                int bitVal = (buffer[byteStart + charset] >> bitShift) & 1;
+                payloadString[b] = bitVal ? '1' : '0';
+            }
+            payloadString[payloadBits] = '\0';
+            printf("Frame %d Stream: %s %s %s %s %s %s %s", currentFrameNum, srcMacBin, destMacBin, ipBinSrc, ipBinDest, srcPortBin, destPortBin, payloadString);
+            for(b = 0; b < paddingBits; b++) printf("0");
+            printf(" 00000000\n");
+            currentFrameNum++;
+        }
+    };
+    return grandTotalFrames;
+}
+int printPhysicalLayer(int sIdx, int dIdx, const char *buffer, int totalLen, int srcPort, int packetBitSize, int frameBitSize) {
+    int i;
+    int charSize = packetBitSize / 8;
+    if (charSize < 1) charSize = 2;
+    int totalPackets = (totalLen + (charSize - 1)) / charSize;
+    int frameInPacket, pIdx, b;
+    int currentFrameNum = 1;
+    char srcMacBin[100], destMacBin[100];
+    char srcPortBin[30], destPortBin[30];
+    char ipBinSrc[50], ipBinDest[50], temp[9];
+    macToBinary(table[sIdx].mac, srcMacBin);
+    macToBinary(table[dIdx].mac, destMacBin);
+    portToBinary(srcPort, srcPortBin);
+    portToBinary(50054, destPortBin);
+    ipBinSrc[0] = '\0';
+    for(i = 0; i < 4; i++) {
+        Binary(table[sIdx].ip[i], temp);
+        strcat(ipBinSrc, temp);
+        if(i < 3)
+           strcat(ipBinSrc, " ");
+    }
+    ipBinDest[0] = '\0';
+    for(i = 0; i < 4; i++) {
+        Binary(table[dIdx].ip[i], temp);
+        strcat(ipBinDest, temp);
+        if(i < 3)
+           strcat(ipBinDest, " ");
+    }
+    printf("\n------------------------------------\n");
+    printf(" LAYER 5 : PHYSICAL LAYER\n");
+    printf("--------------------------------------\n\n");
+    for (pIdx = 0; pIdx < totalPackets; pIdx++) {
+        int byteStart = pIdx * charSize;
+        int bytesInPacket = charSize;
+        if (byteStart + bytesInPacket > totalLen) {
+            bytesInPacket = totalLen - byteStart;
+        }
+        int bitsInPacket = bytesInPacket * 8;
+        int framesForPacket = (bitsInPacket + (frameBitSize - 1)) / frameBitSize;
+        for (frameInPacket = 1; frameInPacket <= framesForPacket; frameInPacket++) {
+            int payloadBits = frameBitSize;
+            int paddingBits = 0;
+            char payloadString[128];
+            int bitStart = (frameInPacket - 1) * frameBitSize;
+            if (bitStart + payloadBits > bitsInPacket) {
+                payloadBits = bitsInPacket - bitStart;
+                paddingBits = frameBitSize - payloadBits;
+            }
+            for (b = 0; b < payloadBits; b++) {
+                int BitPos = bitStart + b;
+                int charset = BitPos / 8;
+                int bitShift = 7 - (BitPos % 8);
+                int bitVal = (buffer[byteStart + charset] >> bitShift) & 1;
+                payloadString[b] = bitVal ? '1' : '0';
+            }
+            payloadString[payloadBits] = '\0';
+            printf("%s%s%s%s%s%s%s", srcMacBin, destMacBin, ipBinSrc, ipBinDest, srcPortBin, destPortBin, payloadString);
+            for(b = 0; b < paddingBits; b++) printf("0");
+            printf("00000000");
+        }
+    }
+    return 1;
+}
+int printTransmission(int sIdx, int dIdx, const char *buffer, int totalFrames, int srcPort) {
+    printf("\n--------------------------\n");
+    printf(" TRANSMISSION \n");
+    printf("----------------------------\n");
+    printf("  Total Frames Sent  : %d\n", totalFrames);
+    printf("  Complete Message   : %s\n", buffer);
+    printf("  Source Port        : %-14d | Destination Port    : 50054\n", srcPort);
+    printf("  Source IP          : %d.%d.%d.%d  | Destination IP      : %d.%d.%d.%d\n",
+           table[sIdx].ip[0], table[sIdx].ip[1], table[sIdx].ip[2], table[sIdx].ip[3],
+           table[dIdx].ip[0], table[dIdx].ip[1], table[dIdx].ip[2], table[dIdx].ip[3]);
+    printf("  Source MAC         : %s  | Destination MAC     : %s\n", table[sIdx].mac, table[dIdx].mac);
+    return 1;
+}
+void executeNetwork(int sIdx, int dIdx, const char *buffer, int totalLen, int srcPort, int packetBitSize, int frameBitSize) {
+    int totalFrames;
+    printApplicationLayer(buffer, totalLen);
+    printTransportLayer(srcPort, buffer, totalLen);
+    printNetworkLayer(sIdx, dIdx, buffer, totalLen, packetBitSize, srcPort);
+    totalFrames = printDataLinkLabel(sIdx, dIdx, buffer, totalLen, srcPort, packetBitSize, frameBitSize);
+    printPhysicalLayer(sIdx, dIdx, buffer, totalLen, srcPort, packetBitSize, frameBitSize);
+    printTransmission(sIdx, dIdx, buffer, totalFrames, srcPort);
+}
+int main()
+{
+    int choice, i, j;
+    int sIdx, dIdx;
+    int len;
+    int packetBitSize, frameBitSize;
+    int randomSrcPort;
+    char src[30];
+    char dest[30];
+    char fileName[30];
+    char buffer[100];
+    char delUrl[30];
+    FILE *fp;
+    srand((unsigned int)time(NULL));
+    strcpy(table[0].url, "client.lan");
+    table[0].ip[0]=192;
+    table[0].ip[1]=168;
+    table[0].ip[2]=1;
+    table[0].ip[3]=10;
+    strcpy(table[0].mac,"AA:BB:CC:DD:EE:FF");
+    strcpy(table[1].url,"google.com");
+    table[1].ip[0]=142;
+    table[1].ip[1]=250;
+    table[1].ip[2]=190;
+    table[1].ip[3]=46;
+    strcpy(table[1].mac,"11:22:33:44:55:66");
+    entryCount = 2;
+    while(1)
+    {
+        printf("\nMENU\n");
+        printf("1. Add Network Node\n");
+        printf("2. Delete Network Node\n");
+        printf("3. Generate & Stream Frame\n");
+        printf("4. View Network Table\n");
+        printf("5. Exit Program\n");
+        printf("Enter your choice : ");
+        scanf("%d",&choice);
+        switch(choice)
+        {
+        case 1:
+            if(entryCount>=20)
+            {
+                printf("\nNetwork Table Full.\n");
+                break;
+            }
+            printf("\nEnter Domain URL : ");
+            scanf("%s",table[entryCount].url);
+            printf("Enter IP Address (xxx.xxx.xxx.xxx): ");
+            scanf("%d.%d.%d.%d",&table[entryCount].ip[0],&table[entryCount].ip[1],&table[entryCount].ip[2],&table[entryCount].ip[3]);
+            printf("Enter MAC Address (XX:XX:XX:XX:XX:XX): ");
+            scanf("%s",table[entryCount].mac);
+            entryCount++;
+            printf("\nNode Added Successfully.\n");
+            break;
+        case 2:
+            printf("\nEnter URL to Delete : ");
+            scanf("%s",delUrl);
+            sIdx=-1;
+            for(i=0;i<entryCount;i++)
+            {
+                if(strcmp(table[i].url,delUrl)==0)
+                {
+                    sIdx=i;
+                    break;
+                }
+            }
+            if(sIdx==-1)
+            {
+                printf("\nURL Not Found.\n");
+            }
+            else
+            {
+                for(j=sIdx;j<entryCount-1;j++)
+                {
+                    table[j]=table[j+1];
+                }
+                entryCount--;
+                printf("\nNode Deleted Successfully.\n");
+            }
+            break;
+        case 3:
+            printf("\nSource URL : ");
+            scanf("%s",src);
+            printf("Destination URL : ");
+            scanf("%s",dest);
+            printf("Packet Size (Bits) : ");
+            scanf("%d",&packetBitSize);
+            printf("Frame Size (Bits) : ");
+            scanf("%d",&frameBitSize);
+            printf("Enter File Name : ");
+            scanf("%s",fileName);
+            fp=fopen(fileName,"r");
+            if(fp==NULL)
+            {
+                printf("\nFile Not Found.\n");
+                break;
+            }
+            fgets(buffer,sizeof(buffer),fp);
+            fclose(fp);
+            len=strlen(buffer);
+            if(len>0 && buffer[len-1]=='\n')
+            {
+                buffer[len-1]='\0';
+                len--;
+            }
+            sIdx=-1;
+            dIdx=-1;
+            for(i=0;i<entryCount;i++)
+            {
+                if(strcmp(src,table[i].url)==0)
+                    sIdx=i;
+                if(strcmp(dest,table[i].url)==0)
+                    dIdx=i;
+            }
+            if(sIdx==-1 || dIdx==-1)
+            {
+                printf("\nInvalid Source/Destination URL.\n");
+                break;
+            }
+            randomSrcPort=(rand()%49152)+1024;
+            executeNetwork(sIdx,dIdx,buffer,len,randomSrcPort,packetBitSize,frameBitSize);
+            break;
+        case 4:
+            displayTable();
+            break;
+        case 5:
+            printf("\nExit\n");
+            return 0;
+        default:
+            printf("\nInvalid Choice.\n");
+        }
+    }
+    return 0;
+}
+[24bcs128@mepcolinux ex0]$cc exer0.c
+[24bcs128@mepcolinux ex0]$./a.out
+
+MENU
+1. Add Network Node
+2. Delete Network Node
+3. Generate & Stream Frame
+4. View Network Table
+5. Exit Program
+Enter your choice : 1
+
+Enter Domain URL : youtube.com
+Enter IP Address (xxx.xxx.xxx.xxx): 123.56.23.56
+Enter MAC Address (XX:XX:XX:XX:XX:XX): AA:34:DC:55:64:BC
+
+Node Added Successfully.
+
+MENU
+1. Add Network Node
+2. Delete Network Node
+3. Generate & Stream Frame
+4. View Network Table
+5. Exit Program
+Enter your choice : 4
+
+--------------- NETWORK ROUTING TABLE --------------------
+URL                  | IP Address      | MAC Address
+------------------------------------------------------------
+client.lan           | 192.168.1  .10  | AA:BB:CC:DD:EE:FF
+google.com           | 142.250.190.46  | 11:22:33:44:55:66
+youtube.com          | 123.56 .23 .56  | AA:34:DC:55:64:BC
+--------------------------------------------------------------
+
+MENU
+1. Add Network Node
+2. Delete Network Node
+3. Generate & Stream Frame
+4. View Network Table
+5. Exit Program
+Enter your choice : 3
+
+Source URL : client.lan
+Destination URL : youtube.com
+Packet Size (Bits) : 16
+Frame Size (Bits) : 10
+Enter File Name : data.txt
+
+---------------------------------
+ LAYER 1 : APPLICATION LAYER
+---------------------------------
+  Message        : Hi
+  Binary Format  : 01001000 01101001
+--------------------------------------------
+ LAYER 2 : TRANSPORT LAYER (SEGMENT)
+--------------------------------------------
+  Source Port              : 18325
+  Destination Port         : 50054
+---------------------------------------------
+ Binary Format
+ Source Port               : 01000111 10010101
+ Destination Port          : 11000011 10000110
+---------------------------------------------
+ Layer Output:
+01000111 10010101 11000011 10000110 01001000 01101001
+---------------------------------------
+ LAYER 3 : NETWORK LAYER
+----------------------------------------
+ Packet 1
+  Source IP        : 192.168.1.10
+  Destination IP   : 123.56.23.56
+----------------------------------------
+ Packet Binary Output:
+11000000 10101000 00000001 00001010 01111011 00111000 00010111 00111000 01000111 10010101 11000011 10000110 01001000 01101001
+
+ Combined Fragmented Stream:
+ 11000000 10101000 00000001 00001010 01111011 00111000 00010111 00111000 01000111 10010101 11000011 10000110 01001000 01101001
+-------------------------------
+ LAYER 4 : DATA LINK LAYER
+---------------------------------
+
+--------------------------------------------------------------
+PACKET 1 (Contains 16 Bits)
+--------------------------------------------------------------
+
+Frame 1
+  Source MAC      : AA:BB:CC:DD:EE:FF
+  Destination MAC : AA:34:DC:55:64:BC
+  Payload Bits    : 10
+  Payload Text    : 0100100001
+  Padding Bits    : 0
+  Error Control   : 00000000
+
+Frame 2
+  Source MAC      : AA:BB:CC:DD:EE:FF
+  Destination MAC : AA:34:DC:55:64:BC
+  Payload Bits    : 6
+  Payload Text    : 101001
+  Padding Bits    : 4
+  Padding Content : 0000
+  Error Control   : 00000000
+
+----------------------------------------
+ COMPLETE BINARY FRAME STREAM OUTPUT
+------------------------------------------
+
+Frame 1 Stream: 10101010 10111011 11001100 11011101 11101110 11111111 10101010 00110100 11011100 01010101 01100100 10111100 11000000 10101000 00000001 00001010 01111011 00111000 00010111 00111000 01000111 10010101 11000011 10000110 0100100001 00000000
+Frame 2 Stream: 10101010 10111011 11001100 11011101 11101110 11111111 10101010 00110100 11011100 01010101 01100100 10111100 11000000 10101000 00000001 00001010 01111011 00111000 00010111 00111000 01000111 10010101 11000011 10000110 1010010000 00000000
+
+------------------------------------
+ LAYER 5 : PHYSICAL LAYER
+--------------------------------------
+
+10101010 10111011 11001100 11011101 11101110 1111111110101010 00110100 11011100 01010101 01100100 1011110011000000 10101000 00000001 0000101001111011 00111000 00010111 0011100001000111 1001010111000011 1000011001001000010000000010101010 10111011 11001100 11011101 11101110 1111111110101010 00110100 11011100 01010101 01100100 1011110011000000 10101000 00000001 0000101001111011 00111000 00010111 0011100001000111 1001010111000011 10000110101001000000000000
+--------------------------
+ TRANSMISSION
+----------------------------
+  Total Frames Sent  : 2
+  Complete Message   : Hi
+  Source Port        : 18325          | Destination Port    : 50054
+  Source IP          : 192.168.1.10  | Destination IP      : 123.56.23.56
+  Source MAC         : AA:BB:CC:DD:EE:FF  | Destination MAC     : AA:34:DC:55:64:BC
+
+MENU
+1. Add Network Node
+2. Delete Network Node
+3. Generate & Stream Frame
+4. View Network Table
+5. Exit Program
+Enter your choice : 2
+
+Enter URL to Delete : client.lan
+
+Node Deleted Successfully.
+
+MENU
+1. Add Network Node
+2. Delete Network Node
+3. Generate & Stream Frame
+4. View Network Table
+5. Exit Program
+Enter your choice : 4
+
+--------------- NETWORK ROUTING TABLE --------------------
+URL                  | IP Address      | MAC Address
+------------------------------------------------------------
+google.com           | 142.250.190.46  | 11:22:33:44:55:66
+youtube.com          | 123.56 .23 .56  | AA:34:DC:55:64:BC
+--------------------------------------------------------------
+
+MENU
+1. Add Network Node
+2. Delete Network Node
+3. Generate & Stream Frame
+4. View Network Table
+5. Exit Program
+Enter your choice : 5
+
+Exit
+
+Additional Code
+-----------------
+Easy
+------
+Problem 1:
+Input
+s="leetcode"
+p="ee*e"
+Output
+true
+Expected
+true
+
+Input
+s="car"
+p="c*v"
+Output
+false
+Expected
+false
+
+Problem 2:
+Input
+n =2
+Output
+[0,1,1]
+Expected
+[0,1,1]
+
+Input
+n =5
+Output
+[0,1,1,2,1,2]
+Expected
+[0,1,1,2,1,2]
+
+Medium
+--------
+Problem 1:
+Input
+s="aabca"
+Output
+3
+Expected
+3
+
+Input
+s="adc"
+Output
+0
+Expected
+0
+
+Problem 2:
+Input
+3
+123
+42
+1001
+Output
+123
+42
+1001
+
+[24bcs128@mepcolinux ex0]$exit
+exit
+
+Script done on Thursday 16 July 2026 09:55:39 AM IST
