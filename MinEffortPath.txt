@@ -1,0 +1,79 @@
+#include <stdlib.h>
+#include <limits.h>
+#include <stdbool.h>
+
+int minimumEffortPath(int** heights, int heightsSize,
+                      int* heightsColSize)
+{
+    int rows = heightsSize;
+    int cols = heightsColSize[0];
+    int n = rows * cols;
+
+    int *dist = (int*)malloc(n * sizeof(int));
+    bool *visited = (bool*)calloc(n, sizeof(bool));
+
+    for (int i = 0; i < n; i++)
+        dist[i] = INT_MAX;
+
+    dist[0] = 0;
+
+    int dr[] = {-1, 1, 0, 0};
+    int dc[] = {0, 0, -1, 1};
+
+    for (int step = 0; step < n; step++)
+    {
+        int u = -1;
+        int min = INT_MAX;
+
+        for (int i = 0; i < n; i++)
+        {
+            if (!visited[i] && dist[i] < min)
+            {
+                min = dist[i];
+                u = i;
+            }
+        }
+
+        if (u == -1)
+            break;
+
+        if (u == n - 1)
+            break;
+
+        visited[u] = true;
+
+        int r = u / cols;
+        int c = u % cols;
+
+        for (int k = 0; k < 4; k++)
+        {
+            int nr = r + dr[k];
+            int nc = c + dc[k];
+
+            if (nr >= 0 && nr < rows &&
+                nc >= 0 && nc < cols)
+            {
+                int v = nr * cols + nc;
+
+                if (!visited[v])
+                {
+                    int diff = abs(heights[r][c] -
+                                   heights[nr][nc]);
+
+                    int effort = (dist[u] > diff)
+                                 ? dist[u] : diff;
+
+                    if (effort < dist[v])
+                        dist[v] = effort;
+                }
+            }
+        }
+    }
+
+    int ans = dist[n - 1];
+
+    free(dist);
+    free(visited);
+
+    return ans;
+}

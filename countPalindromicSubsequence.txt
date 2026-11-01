@@ -1,0 +1,44 @@
+int countPalindromicSubsequence(char* s)
+{
+    int first[26], last[26];
+    int count = 0;
+
+    for (int i = 0; i < 26; i++)
+    {
+        first[i] = -1;
+        last[i] = -1;
+    }
+
+    int n = strlen(s);
+
+    for (int i = 0; i < n; i++)
+    {
+        int ch = s[i] - 'a';
+
+        if (first[ch] == -1)
+            first[ch] = i;
+
+        last[ch] = i;
+    }
+
+    for (int i = 0; i < 26; i++)
+    {
+        if (first[i] != -1 && last[i] > first[i])
+        {
+            int seen[26] = {0};
+
+            for (int j = first[i] + 1; j < last[i]; j++)
+            {
+                seen[s[j] - 'a'] = 1;
+            }
+
+            for (int j = 0; j < 26; j++)
+            {
+                if (seen[j])
+                    count++;
+            }
+        }
+    }
+
+    return count;
+}

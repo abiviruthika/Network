@@ -1,0 +1,69 @@
+#include <stdlib.h>
+#include <string.h>
+
+int numBusesToDestination(int** routes, int routesSize,
+                          int* routesColSize, int source, int target)
+{
+    if (source == target)
+        return 0;
+
+    int visited[100001] = {0};
+    int busVisited[501] = {0};
+
+    int queue[100001];
+    int front = 0, rear = 0;
+
+    queue[rear++] = source;
+    visited[source] = 1;
+
+    int buses = 0;
+
+    while (front < rear)
+    {
+        int size = rear - front;
+        buses++;
+
+        while (size--)
+        {
+            int stop = queue[front++];
+
+            for (int i = 0; i < routesSize; i++)
+            {
+                if (busVisited[i])
+                    continue;
+
+                int found = 0;
+
+                for (int j = 0; j < routesColSize[i]; j++)
+                {
+                    if (routes[i][j] == stop)
+                    {
+                        found = 1;
+                        break;
+                    }
+                }
+
+                if (!found)
+                    continue;
+
+                busVisited[i] = 1;
+
+                for (int j = 0; j < routesColSize[i]; j++)
+                {
+                    int nextStop = routes[i][j];
+
+                    if (nextStop == target)
+                        return buses;
+
+                    if (!visited[nextStop])
+                    {
+                        visited[nextStop] = 1;
+                        queue[rear++] = nextStop;
+                    }
+                }
+            }
+        }
+    }
+
+    return -1;
+}
