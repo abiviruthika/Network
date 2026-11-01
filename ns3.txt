@@ -1,0 +1,51 @@
+
+#include <stdio.h>
+
+int main()
+{
+    int packet_size, buffer_size;
+    int sent = 0, received = 0;
+    int buffer = 0;
+
+    printf("Enter Packet Size: ");
+    scanf("%d", &packet_size);
+
+    printf("Enter Buffer Size: ");
+    scanf("%d", &buffer_size);
+
+    if (packet_size <= 0 || buffer_size <= 0)
+    {
+        printf("Invalid input!\n");
+        return 1;
+    }
+
+    printf("\nPacket Transmission Started\n\n");
+
+    while (sent < packet_size)
+    {
+        sent++;
+        buffer++;
+
+        printf("Packet %d added to buffer\n", sent);
+        printf("Buffer: %d/%d\n", buffer, buffer_size);
+
+        if (buffer == buffer_size || sent == packet_size)
+        {
+            if (buffer == buffer_size && sent < packet_size)
+                printf("Congestion occurred! Buffer is full.\n");
+
+            printf("Sending %d packets to receiver...\n", buffer);
+
+            received = received + buffer;
+            buffer = 0;
+
+            printf("Packets received: %d/%d\n", received, packet_size);
+            printf("Buffer cleared.\n\n");
+        }
+    }
+
+    printf("All %d packets reached the receiver successfully.\n",
+           received);
+
+    return 0;
+}
